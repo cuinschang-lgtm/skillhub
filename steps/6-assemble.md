@@ -5,12 +5,21 @@
 ## 命令
 
 ```bash
-python3 ${SKILL_DIR}/skeleton/assemble.py \
+python3 ${CLAUDE_SKILL_DIR}/skeleton/assemble.py \
   <extracted_dir> \
   <output_dir> \
   <skill_name> \
-  "<book_title>"
+  "<book_title>" \
+  [--domain "管理会计"]      # 用于 description 描述领域
+  [--allow-partial]          # V1 默认关键词缺失 fail-fast；显式允许带缺章组装
 ```
+
+**V1 行为变更（基于 V1 审计修复 B1/B2/B3/B4）**:
+- frontmatter 用 `yaml.safe_dump` 生成（不再字符串拼接），避免 `:`/引号/换行注入
+- skill_name 强制校验 `^[a-z0-9]+(-[a-z0-9]+)*$` 且 ≤ 64 字符
+- description 改 "pushy" 风格 + 关键词扩到能塞满 1500 budget（典型 30+）
+- 同时输出 `<output>/agents/openai.yaml` 让 Codex 等其他 harness 也能识别
+- 任一章节关键词为空默认 raise，传 `--allow-partial` 才允许继续
 
 ## 输出目录结构
 

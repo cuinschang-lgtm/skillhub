@@ -1,0 +1,37 @@
+# OpenAI Codex skill metadata
+# https://developers.openai.com/codex/skills
+#
+# 与 Anthropic 侧 SKILL.md frontmatter 平行存在，让本 skill 在 Codex / 其他 OpenAI-style harness 也能被正确路由 + 默认手动触发。
+# Anthropic Claude Code 不读这个文件；Codex 不读 SKILL.md 里的 disable-model-invocation。
+
+name: textbook2skill
+description: |
+  Compile a PDF textbook into a domain-knowledge skill.
+  Use whenever the user provides a PDF (or already-OCR'd markdown) of a textbook
+  and wants it turned into a skill / knowledge base / domain expert / Q&A pack —
+  also trigger on synonyms like "compile textbook", "PDF 转 skill",
+  "把这本书做成 skill", "教材 → 领域知识".
+  Do NOT trigger on novels, blogs, news articles, or non-textbook PDFs.
+
+version: 0.1.0
+
+policy:
+  # 与 Anthropic 的 disable-model-invocation 含义一致：默认手动触发
+  # 用户显式 $textbook2skill 或在请求中点名时才激活
+  # 设为 true 可允许 Codex 隐式调用（基于 description 匹配）
+  allow_implicit_invocation: true
+
+# 工具依赖（若 Codex MCP 接入，可在此声明）
+dependencies:
+  tools: []
+  # 示例（未来按需启用）：
+  # - type: shell
+  #   value: pdfinfo
+  #   description: PDF 元数据探测
+  # - type: shell
+  #   value: python3
+  #   description: 跑 skeleton/*.py
+
+# 安装路径（Codex 约定）：
+#   ~/.agents/skills/textbook2skill/   (USER scope)
+#   .agents/skills/textbook2skill/     (REPO scope)

@@ -2,6 +2,14 @@
 
 把组装好的 skill 目录复制到目标位置。**这一步无 skeleton 代码** — 是交互式的（确认 + 备份 + 复制）。
 
+## V1 安装前检查（必做）
+
+在执行任何 cp/mv 前，先看 `<build>/state.json` 和 `<build>/benchmark.json`：
+
+1. **state.json 必须 `bench.status == "ok"`**。如果 user 传过 `--allow-unbenchmarked` → state 里没有 bench stage → **STOP，问用户是否真的要装一个未 benchmark 的 skill**（默认 No）
+2. **extract.status == "ok"**。如果 status == "failed" → STOP，回 step 5 重跑
+3. **agents/openai.yaml 已生成**（assemble 会自动产）— 装到 ~/.agents/skills/ 时会用到
+
 ## D6: 覆盖确认（用 AskUserQuestion 问）
 
 如果目标位置已经有同名 skill，**STOP 问用户**：

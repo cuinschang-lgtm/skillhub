@@ -7,7 +7,7 @@
 直接调骨架:
 
 ```bash
-python3 ${SKILL_DIR}/skeleton/probe.py "<PDF>"
+python3 ${CLAUDE_SKILL_DIR}/skeleton/probe.py "<PDF>"
 ```
 
 输出 JSON: `{path, pages, size_mb, has_text_layer, language, encrypted, needs_ocr}`

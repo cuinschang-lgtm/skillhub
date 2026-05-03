@@ -16,7 +16,7 @@
 ## 命令
 
 ```bash
-python3 ${SKILL_DIR}/skeleton/split.py "<book.md>" "<chapters.json>"
+python3 ${CLAUDE_SKILL_DIR}/skeleton/split.py "<book.md>" "<chapters.json>"
 ```
 
 ## I/O 契约

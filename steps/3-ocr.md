@@ -61,7 +61,7 @@ Net: MinerU 是最稳的默认；如果用户已有 markdown，D 是最快路径
 
 ```bash
 # 自动处理大书切块
-python3 ${SKILL_DIR}/skeleton/ocr_mineru.py "<PDF>" "<output_dir>"
+python3 ${CLAUDE_SKILL_DIR}/skeleton/ocr_mineru.py "<PDF>" "<output_dir>"
 ```
 
 输出: `<output_dir>/<batch_id>/full.md`（多块时合并到 `<output_dir>/full-merged.md`）
@@ -115,7 +115,7 @@ OCR 100% 准确不存在。常见错误：
 如果用户已有 markdown（之前跑过 OCR、自己手动 OCR 过），用 `--ocr-cache` 跳过：
 
 ```bash
-python3 ${SKILL_DIR}/skeleton/pipeline.py \
+python3 ${CLAUDE_SKILL_DIR}/skeleton/pipeline.py \
   --ocr-cache /path/to/existing/book.md \
   ...
 ```

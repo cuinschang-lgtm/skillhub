@@ -1,4 +1,7 @@
-# Benchmark 评分 prompt 模板（可选 — 用于 LLM-as-judge 兜底）
+# Benchmark 评分 prompt 模板（**未在 skeleton 实现**，仅供手动复核 / 未来扩展）
+
+> ⚠️ V1 审计说明：本 prompt 在 `bench.py` 未自动调用，标记为"未实现"以避免文档与实现脱节。
+> 如需启用 LLM-as-judge 兜底，按下方 prompt 模板手动跑、或在 `bench.py` 的 `grade()` 后加一段 disagreement 复核逻辑（见文末"实际产品中的取舍"）。
 
 `bench.py` 的 `grade()` 函数主要靠规则评分（MCQ 字母提取 + 数字 ±2% + 文本模糊匹配）。
 

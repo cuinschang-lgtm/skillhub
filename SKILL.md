@@ -1,9 +1,8 @@
 ---
 name: textbook2skill
-description: 把 PDF 教材编译成 Claude Code skill。引导用户走 OCR → 章节切分 → LLM 抽取 → skill 组装 → benchmark 验证 → 安装。本 skill 提供最小可执行 Python 骨架（skeleton/）和详细步骤说明，未来 Claude 按步骤执行 + 在每个关键决策点用 AskUserQuestion 询问用户（OCR 提供商 / LLM 提供商 / API key / 安装位置 / 是否覆盖等）。处理 300 页教材约 10 分钟（不含 OCR 网络等待）。
-when_to_use: 用户明确提供 PDF 教材路径并请求生成 Claude Code skill。触发关键词："把这本书做成 skill"、"compile textbook"、"PDF 转 skill"、"textbook2skill"。**不要**在没有 PDF 路径时主动建议；**不要**用于生成非教材类内容。
-disable-model-invocation: true
-allowed-tools: Bash(python3 *) Bash(curl *) Bash(qpdf *) Bash(pdfinfo *) Bash(pdftotext *) Bash(cp *) Bash(mv *) Bash(mkdir *) Bash(ls *) Bash(cat *) Bash(file *) Bash(rm *) Read Write Edit Glob Grep
+description: 把 PDF 教材编译成 Claude Code skill。Use this skill whenever the user wants to turn a textbook PDF (or already-OCR'd markdown of a textbook) into a Claude Code skill, even if they don't say "skill" — also trigger on "compile textbook", "PDF 转 skill", "把这本书做成知识库", "教材 → 领域知识 skill", "textbook2skill", "/textbook2skill". 工作流：probe → OCR (default MinerU) → 章节切分 → LLM 抽取 (default DeepSeek) → 组装 → benchmark (必跑) → 安装。每一步在关键决策点用 AskUserQuestion (D-编号 / ELI10 / Stakes / Recommendation / Pros-Cons / Net) 严格询问用户（PDF 路径、skill 名、安装位置、OCR 厂商、LLM 厂商、API key、是否覆盖）。处理 300 页教材约 10 分钟（不含 OCR 网络等待）。**不要**在没有具体 PDF 输入时主动调用；**不要**用于非教材类（小说、新闻、博客）。
+when_to_use: 用户提到 PDF 教材、textbook、教科书、专业课课本、扫描版书、想把书做成 skill / 知识库 / 领域专家 / 自动问答；显式 `/textbook2skill`；或上传/指向一个 PDF 文件并问"这个能做成什么"。
+allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/skeleton/*) Bash(pdfinfo *) Bash(pdftotext *) Bash(qpdf *) Bash(file *) Read Glob Grep
 ---
 
 # textbook2skill

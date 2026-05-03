@@ -22,10 +22,10 @@
 ## 命令
 
 ```bash
-python3 ${SKILL_DIR}/skeleton/bench.py \
+python3 ${CLAUDE_SKILL_DIR}/skeleton/bench.py \
   <skill_dir> \
   <questions.json> \
-  ${SKILL_DIR}/prompts \
+  ${CLAUDE_SKILL_DIR}/prompts \
   [provider]   # 默认 deepseek
 ```
 
@@ -74,14 +74,18 @@ python3 pipeline.py ... --skip-bench             # 跳过（不推荐）
 
 `grade()` 处理填空：数字 ±2% 容差 + 文本模糊包含匹配 + `answer_aliases` 等价。
 
-## McNemar test（codex review 修订后）
+## McNemar test + 95% CI（V1 修订）
 
-V0 报 +6.5% 时 codex 指出"31 题 +2 题就 6.45%，基本是噪声"。修复：
+V0 报 +6.5% 时 codex 指出"31 题 +2 题就 6.45%，基本是噪声"。V1 进一步修订：
 
-`mcnemar_p_value(b, c)` 算单侧 p-value：
-- `b` = WITH 对 + WITHOUT 错 数量
-- `c` = WITH 错 + WITHOUT 对 数量
-- p < 0.05 才能宣称"显著"
+- `mcnemar_exact_p(b, c)` 用 **exact binomial**（替代 V0 的 chi-square 近似）— 30 题小样本下更稳
+  - `b` = WITH 对 + WITHOUT 错 数量
+  - `c` = WITH 错 + WITHOUT 对 数量
+  - H0: discordant pairs ~ Binomial(b+c, 0.5)
+  - p < 0.05 才能宣称"显著"
+- `wilson_ci(successes, total)` 算 95% CI（per-condition 准确率）
+- `newcombe_diff_ci(s1, n1, s2, n2)` 算差距 95% CI（独立近似，30 题 smoke 用作粗略参考）
+- 报告同时输出 WITH/WITHOUT 准确率 CI + 差距 CI + McNemar p
 
 ## 出报告
 

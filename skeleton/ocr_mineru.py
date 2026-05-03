@@ -87,13 +87,28 @@ def poll_until_done(token: str, batch_id: str, interval: int = 30, timeout: int 
     raise TimeoutError(f"MinerU OCR 超时（{timeout}s）")
 
 
+def _safe_extract_zip(zf: zipfile.ZipFile, dest_dir: Path) -> None:
+    """V1 修订：防 zip-slip。校验每个 member 解压后的 resolved path 必须在 dest_dir 下。"""
+    dest_resolved = dest_dir.resolve()
+    for member in zf.infolist():
+        target = (dest_dir / member.filename).resolve()
+        try:
+            target.relative_to(dest_resolved)
+        except ValueError:
+            raise RuntimeError(
+                f"拒绝解压 zip member（zip-slip 攻击防护）: {member.filename!r} "
+                f"指向 {target} 不在 {dest_resolved} 下"
+            )
+    zf.extractall(dest_dir)
+
+
 def download_and_extract(zip_url: str, dest_dir: Path) -> Path:
     """下载结果 zip 并解压，返回 full.md 路径"""
     r = requests.get(zip_url, timeout=600)
     r.raise_for_status()
     dest_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
-        zf.extractall(dest_dir)
+        _safe_extract_zip(zf, dest_dir)
     md_files = list(dest_dir.rglob("full.md"))
     if not md_files:
         md_files = list(dest_dir.rglob("*.md"))
@@ -123,9 +138,16 @@ def ocr_pdf(pdf_path: Path, output_dir: Path, token: str | None = None) -> Path:
     return md_path
 
 
-def split_pdf_for_mineru(pdf_path: Path, max_pages: int = 200) -> list[Path]:
+def split_pdf_for_mineru(
+    pdf_path: Path,
+    max_pages: int = 200,
+    parts_dir: Path | None = None,
+) -> list[Path]:
     """如果 PDF 超过 MinerU 200 页限制，用 qpdf 切块。
     返回切块后的 PDF 路径列表（如果不超限，返回 [原文件]）
+
+    V1 修订: 切块输出到 parts_dir（默认 <pdf_parent>/.textbook2skill_parts/），
+    不再污染源 PDF 所在目录。
     """
     import subprocess
     info = subprocess.run(["pdfinfo", str(pdf_path)], capture_output=True, text=True, check=True).stdout
@@ -136,11 +158,13 @@ def split_pdf_for_mineru(pdf_path: Path, max_pages: int = 200) -> list[Path]:
     if total <= max_pages:
         return [pdf_path]
 
-    output_dir = pdf_path.parent
+    if parts_dir is None:
+        parts_dir = pdf_path.parent / ".textbook2skill_parts"
+    parts_dir.mkdir(parents=True, exist_ok=True)
     parts = []
     for start in range(1, total + 1, max_pages):
         end = min(start + max_pages - 1, total)
-        out = output_dir / f"{pdf_path.stem}_p{start}-{end}.pdf"
+        out = parts_dir / f"{pdf_path.stem}_p{start}-{end}.pdf"
         subprocess.run(
             ["qpdf", str(pdf_path), "--pages", ".", f"{start}-{end}", "--", str(out)],
             check=True,

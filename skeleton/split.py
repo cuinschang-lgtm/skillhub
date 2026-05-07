@@ -27,12 +27,64 @@ class Chapter:
     num: str | None = None  # 章节号（如 "3" 或 "三"）
 
 
+# ---------- 标题分类（P0-A.2.1: 严格区分"真章节"与 mid-section）----------
+
+# 真章节标志（按可信度从高到低）
+REAL_CHAPTER_PATTERNS = [
+    re.compile(r"^第[一二三四五六七八九十百零\d]+章\b"),       # 第N章
+    re.compile(r"^Chapter\s+\d+\b", re.IGNORECASE),            # Chapter N
+    re.compile(r"^Part\s+[IVX]+\b", re.IGNORECASE),            # Part I/II
+    re.compile(r"^Section\s+\d+\b", re.IGNORECASE),            # Section N
+    re.compile(r"^Lecture\s+\d+\b", re.IGNORECASE),            # Lecture N
+    re.compile(r"^\d+\.\d+\s+[A-Z][a-z]+\s+[A-Z]"),            # 1.1 Capital Letter ... Capital
+]
+
+# mid-section / 重复 / 例题 / 习题 等"非真章节"标志
+MID_SECTION_PATTERNS = [
+    re.compile(r"^[（(][一二三四五六七八九十\d]+[）)]"),       # （一）（1）(1)
+    re.compile(r"^[①②③④⑤⑥⑦⑧⑨⑩]"),                       # ① ②
+    re.compile(r"^\$[①②③④]"),                                # $① etc OCR 残留
+    re.compile(r"^\d+\.\d+\.\d+"),                              # 7.6.4
+    re.compile(r"^\d+、"),                                       # 1、
+    re.compile(r"^[【\[]案例"),                                  # 【案例
+    re.compile(r"^示例\s*\d+"),                                  # 示例4
+    re.compile(r"^Solution\b", re.IGNORECASE),
+    re.compile(r"^Problems?\b", re.IGNORECASE),
+    re.compile(r"^Examples?\b", re.IGNORECASE),
+    re.compile(r"^EXAMPLE\s+\d+", re.IGNORECASE),
+    re.compile(r"^Spreadsheet\s+(Solution|Exercises?)", re.IGNORECASE),
+    re.compile(r"^Case Study Exercises?", re.IGNORECASE),
+    re.compile(r"^FE Practice Problems", re.IGNORECASE),
+    re.compile(r"^Selected References", re.IGNORECASE),  # 单独算附录
+]
+
+
+def is_real_chapter_title(title: str) -> bool:
+    """是否是真章节标题（True）；明确 mid-section（False）；未知（None）"""
+    title = title.strip().lstrip("# ").strip()
+    if not title:
+        return False
+    for p in MID_SECTION_PATTERNS:
+        if p.match(title):
+            return False
+    for p in REAL_CHAPTER_PATTERNS:
+        if p.match(title):
+            return True
+    return None
+
+
 # ---------- TOC 提取（多本教材通用）----------
 
 def extract_toc(markdown: str) -> list[str]:
     """从 markdown 开头的 # 目录 / TOC 区域提取章节列表"""
     # 找目录起点
-    toc_anchors = [r"^# 目录\s*$", r"^# Contents?\s*$", r"^# Table of Contents\s*$"]
+    # P0-A.2.1: 容忍 OCR 在"目 录"间留空格
+    toc_anchors = [
+        r"^#\s*目\s*录\s*$",
+        r"^#\s*Contents?\s*$",
+        r"^#\s*Table of Contents\s*$",
+        r"^#\s*目\s+次\s*$",  # 部分教材用"目次"
+    ]
     region_start = None
     for anchor in toc_anchors:
         m = re.search(anchor, markdown, re.MULTILINE | re.IGNORECASE)
@@ -134,15 +186,25 @@ def split_by_toc(markdown: str) -> list[Chapter]:
     return chapters
 
 
-# ---------- Strategy 2: H1 + size 启发 ----------
+# ---------- Strategy 2: H1 + size 启发（P0-A.2.2: 过滤 mid-section + 粒度控制）----------
 
-def split_by_h1_size(markdown: str, min_chars: int = 3000) -> list[Chapter]:
-    """所有 H1 标题做切分，过滤过短的（< min_chars 字符的不算章节）"""
+def split_by_h1_size(markdown: str, min_chars: int = 3000,
+                     reject_mid_section: bool = True,
+                     max_chapters: int = 50) -> list[Chapter]:
+    """所有 H1 标题做切分。
+
+    P0-A.2.2 修改：
+    - reject_mid_section=True 时，剔除 MID_SECTION_PATTERNS 命中的标题
+    - 如果剔除后真章节数 ≥ 3，只保留真章节
+    - 如果章数仍 > max_chapters，按"章节级标题占比"判定 over-fragmentation
+      并降级为只保留 REAL_CHAPTER_PATTERNS 命中的标题
+    """
     h1_positions = [(m.start(), m.group(1).strip())
                     for m in re.finditer(r"^#\s+(.+?)$", markdown, re.MULTILINE)]
     if not h1_positions:
         return []
 
+    # 收集"足够长"的 H1
     candidates = []
     for i, (pos, title) in enumerate(h1_positions):
         next_pos = h1_positions[i + 1][0] if i + 1 < len(h1_positions) else len(markdown)
@@ -152,6 +214,34 @@ def split_by_h1_size(markdown: str, min_chars: int = 3000) -> list[Chapter]:
 
     if not candidates:
         return []
+
+    # P0-A.2.2 step 1: mid-section 过滤
+    # 只要过滤后剩 ≥ 3 章 且确实过滤掉了一些（原候选有 mid-section），就采纳
+    if reject_mid_section:
+        real_only = [
+            (pos, title, size)
+            for pos, title, size in candidates
+            if is_real_chapter_title(title) is not False
+        ]
+        if len(real_only) >= 3 and len(real_only) < len(candidates):
+            removed = len(candidates) - len(real_only)
+            print(
+                f"[split:h1-size] mid-section 过滤: {len(candidates)} → {len(real_only)} (剔除 {removed} 个非章节标题)",
+                flush=True,
+            )
+            candidates = real_only
+
+    # P0-A.2.2 step 2: over-fragmentation 兜底
+    if len(candidates) > max_chapters:
+        # 章太多 → 只保留明确"真章节"
+        strict = [
+            (pos, title, size)
+            for pos, title, size in candidates
+            if is_real_chapter_title(title) is True
+        ]
+        if len(strict) >= 3:
+            print(f"[split:h1-size] over-fragmentation 兜底: {len(candidates)} → {len(strict)} (保留真章节)", flush=True)
+            candidates = strict
 
     chapters = []
     for i, (pos, title, _) in enumerate(candidates):

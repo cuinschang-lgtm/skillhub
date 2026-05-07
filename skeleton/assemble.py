@@ -172,6 +172,25 @@ def build_description(
     return description
 
 
+# P0-A.2.3: 附录章模式（参考文献/习题答案/索引等"非教学正文"），合法可无 keyword
+APPENDIX_TITLE_PATTERNS = [
+    re.compile(r"参考文献|参考资料|References?\b", re.IGNORECASE),
+    re.compile(r"习题答案|答案与提示|Answer Key|Answers to ", re.IGNORECASE),
+    re.compile(r"^附录|^Appendix\b", re.IGNORECASE),
+    re.compile(r"^索引|^Index\b", re.IGNORECASE),
+    re.compile(r"^Selected\s+(References|Bibliography)", re.IGNORECASE),
+    re.compile(r"^Pedagogy of This Book", re.IGNORECASE),
+    re.compile(r"^Glossary\b", re.IGNORECASE),
+    re.compile(r"^Bibliography\b", re.IGNORECASE),
+]
+
+
+def is_appendix_title(title: str) -> bool:
+    """是否是合法的"附录章"（无 keyword 也允许通过）"""
+    title = title.strip().lstrip("# ").strip()
+    return any(p.search(title) for p in APPENDIX_TITLE_PATTERNS)
+
+
 def assemble(
     extracted_dir: Path,
     output_dir: Path,
@@ -184,8 +203,10 @@ def assemble(
     """组装最终 skill 目录
 
     Args:
-        allow_partial: 默认 False。任何章节关键词为空时 fail-fast。
+        allow_partial: 默认 False。任何**正文**章节关键词为空时 fail-fast。
                        True 时允许，但仍会在 stderr 警告。
+                       P0-A.2.3: 附录章（参考文献/索引/习题答案等）即使 keyword 为空也合法通过，
+                       不计入 empty_chapters。
     """
     validate_name(skill_name)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -200,6 +221,7 @@ def assemble(
     chapter_topics = []
     all_keywords = []
     empty_chapters = []
+    appendix_chapters = []  # P0-A.2.3: 单独跟踪附录章
 
     for src in chapter_files:
         content = src.read_text(encoding="utf-8")
@@ -211,9 +233,15 @@ def assemble(
         chapter_topics.append(topic)
 
         keywords = extract_keywords(content)
+        # P0-A.2.3: 附录章无 keyword 不算 empty
+        is_appendix = is_appendix_title(first) or is_appendix_title(src.stem)
         if not keywords:
-            empty_chapters.append(src.name)
-            keyword_str = "(关键词缺失)"
+            if is_appendix:
+                appendix_chapters.append(src.name)
+                keyword_str = "(附录章)"
+            else:
+                empty_chapters.append(src.name)
+                keyword_str = "(关键词缺失)"
         else:
             all_keywords.extend(keywords)
             keyword_str = "、".join(keywords[:5])
@@ -222,16 +250,24 @@ def assemble(
         dest.write_text(content, encoding="utf-8")
         chapter_rows.append(f"| {first} | {keyword_str} | `chapters/{src.name}` |")
 
-    # B4: fail-fast on missing keywords
+    # B4: fail-fast on missing keywords (P0-A.2.3: 附录章已豁免)
     if empty_chapters and not allow_partial:
         raise RuntimeError(
-            f"以下章节关键词提取为空（共 {len(empty_chapters)} 章）：\n  - "
+            f"以下**正文**章节关键词提取为空（共 {len(empty_chapters)} 章）：\n  - "
             + "\n  - ".join(empty_chapters)
             + "\n\n这通常意味着 LLM 抽取的章节没有 `## 核心概念` 等结构化 heading，"
             "或抽取本身失败 / 输出 [抽取失败] 占位。\n"
+            "（附录章 like 参考文献/索引/习题答案已豁免，本错误不含这些）\n"
             "建议：1) 重跑 step 5 extract  "
             "2) 检查抽取 prompt 是否被正确加载  "
             "3) 如确认要带缺章交付，传 allow_partial=True（不推荐）。"
+        )
+
+    if appendix_chapters:
+        print(
+            f"[assemble] {len(appendix_chapters)} 章为附录（已豁免 keyword 检查）: "
+            f"{appendix_chapters}",
+            flush=True,
         )
 
     # B2: yaml.safe_dump 生成 frontmatter，杜绝注入

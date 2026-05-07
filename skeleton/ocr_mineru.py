@@ -151,8 +151,9 @@ def split_pdf_for_mineru(
     """
     import subprocess
     info = subprocess.run(["pdfinfo", str(pdf_path)], capture_output=True, text=True, check=True).stdout
-    pages_match = [int(x) for x in info.splitlines() if x.startswith("Pages:")]
-    if not pages_match:
+    # P22 fix: 仅做"存在性检查"，不要对整行 "Pages:           240" 做 int() 解析
+    pages_lines = [x for x in info.splitlines() if x.startswith("Pages:")]
+    if not pages_lines:
         return [pdf_path]
     total = int(info.split("Pages:")[1].split("\n")[0].strip())
     if total <= max_pages:

@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { BookOpen, Upload, Library, MessageCircle, Settings, LayoutDashboard, Bell, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuthStore } from "@/lib/auth-store";
 
 const sidebarItems = [
   { href: "/knowledge", icon: Library, label: "知识库" },
   { href: "/chat", icon: MessageCircle, label: "我的问答" },
   { href: "/upload", icon: Upload, label: "教材上传" },
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/settings", icon: Settings, label: "设置" },
 ];
 
@@ -54,6 +56,12 @@ function Sidebar() {
 }
 
 function TopBar() {
+  const { user, refresh, logout } = useAuthStore();
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
   return (
     <header className="h-14 border-b border-border bg-white flex items-center justify-between px-6">
       <div />
@@ -62,13 +70,22 @@ function TopBar() {
           <Bell className="w-5 h-5 text-muted-foreground" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
         </button>
-        <div className="flex items-center gap-2 cursor-pointer">
+        <button
+          type="button"
+          onClick={async () => {
+            await logout();
+            window.location.href = "/login";
+          }}
+          className="flex items-center gap-2 cursor-pointer"
+        >
           <Avatar className="w-8 h-8">
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">张</AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+              {(user?.displayName || "U").slice(0, 1)}
+            </AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium text-foreground">张老师</span>
+          <span className="text-sm font-medium text-foreground">{user?.displayName || user?.email || "未登录"}</span>
           <ChevronDown className="w-3 h-3 text-muted-foreground" />
-        </div>
+        </button>
       </div>
     </header>
   );

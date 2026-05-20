@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: skillhub
+      POSTGRES_USER: skillhub
+      POSTGRES_PASSWORD: skillhub_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./apps/api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://skillhub:skillhub_dev@postgres:5432/skillhub
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: dev-secret-change-in-production
+      STORAGE_DIR: /app/storage
+    volumes:
+      - ./apps/api:/app
+      - ./packages/skeleton:/app/skeleton
+      - storage_data:/app/storage
+    depends_on:
+      - postgres
+      - redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build: ./apps/api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://skillhub:skillhub_dev@postgres:5432/skillhub
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_DIR: /app/storage
+    volumes:
+      - ./apps/api:/app
+      - ./packages/skeleton:/app/skeleton
+      - storage_data:/app/storage
+    depends_on:
+      - postgres
+      - redis
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+
+volumes:
+  postgres_data:
+  storage_data:

@@ -13,16 +13,26 @@ build/
 .env
 .env.local
 .env.production.local
+*.key
+mineru-token*
+deepseek-key*
 
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
 venv/
 .venv/
+.pytest_cache/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
@@ -30,6 +40,10 @@ Thumbs.db
 
 # Storage (local dev uploads)
 storage/
+work/
+out-*/
 
 # Misc
 *.log
+benchmark-results*.json
+benchmark-questions*.json

@@ -106,6 +106,9 @@ function RegisterInner() {
             <p className="text-sm text-muted-foreground mt-1">请选择你的身份角色</p>
           </CardHeader>
           <CardContent className="space-y-4 pt-4">
+            <div className="text-sm text-muted-foreground bg-muted border border-border rounded-lg px-3 py-2">
+              演示环境不发送邮件验证码，固定为 <span className="font-semibold text-foreground">123456</span>
+            </div>
             {error ? (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {error}

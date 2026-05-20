@@ -99,6 +99,9 @@ function LoginInner() {
           <p className="text-sm text-muted-foreground mt-1">登录你的账户，继续探索知识的边界</p>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
+          <div className="text-sm text-muted-foreground bg-muted border border-border rounded-lg px-3 py-2">
+            演示环境不发送邮件验证码，固定为 <span className="font-semibold text-foreground">123456</span>
+          </div>
           {error ? (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {error}

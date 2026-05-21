@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 
+const MAX_UPLOAD_MB = 20;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+
 export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -26,12 +29,21 @@ export default function UploadPage() {
     e.preventDefault();
     const dropped = e.dataTransfer.files[0];
     if (dropped?.type === "application/pdf") {
+      if (dropped.size > MAX_UPLOAD_BYTES) {
+        setError(`当前演示站点单次上传建议不超过 ${MAX_UPLOAD_MB}MB。请先压缩 PDF，或改走直传后端/对象存储。`);
+        return;
+      }
+      setError("");
       setFile(dropped);
     }
   };
 
   const handleSubmit = async () => {
     if (!file || !bookTitle || !domain) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(`当前演示站点单次上传建议不超过 ${MAX_UPLOAD_MB}MB。你当前文件约 ${(file.size / 1024 / 1024).toFixed(1)}MB。`);
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -50,7 +62,8 @@ export default function UploadPage() {
       });
       const data = (await res.json().catch(() => null)) as { id?: string; detail?: string; message?: string } | null;
       if (!res.ok || !data?.id) {
-        setError(data?.detail || data?.message || "创建任务失败");
+        const parts = [data?.message, data?.detail].filter(Boolean);
+        setError(parts.join(" ") || "创建任务失败");
         return;
       }
       router.push(`/progress/${data.id}`);
@@ -111,7 +124,13 @@ export default function UploadPage() {
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) setFile(f);
+                    if (!f) return;
+                    if (f.size > MAX_UPLOAD_BYTES) {
+                      setError(`当前演示站点单次上传建议不超过 ${MAX_UPLOAD_MB}MB。你当前文件约 ${(f.size / 1024 / 1024).toFixed(1)}MB。`);
+                      return;
+                    }
+                    setError("");
+                    setFile(f);
                   }}
                 />
               </label>
@@ -229,6 +248,10 @@ export default function UploadPage() {
 
           <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
             演示环境已接入服务端 LLM key。若 PDF 本身有文字层，会优先直接提取文本；扫描版 PDF 会走 OCR。
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            线上演示站点建议上传不超过 {MAX_UPLOAD_MB}MB 的 PDF。更大的文件建议改为直传后端或对象存储，不要先经过前端代理。
           </div>
 
           <Button

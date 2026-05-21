@@ -5,10 +5,13 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils qpdf && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY apps/api/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY apps/api /app
+COPY skeleton /skeleton
+COPY prompts /prompts
 
 EXPOSE 8000
+ENV PYTHONPATH=/app:/skeleton
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     mineru_token: str = ""
     default_llm_provider: str = "deepseek"
     allow_partial_skill: bool = False
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
 
 settings = Settings()

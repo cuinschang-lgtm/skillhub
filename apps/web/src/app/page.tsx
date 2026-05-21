@@ -56,10 +56,10 @@ export default function LandingPage() {
             <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">关于我们</Link>
           </nav>
           <div className="flex items-center gap-3">
-            <Link href="/login">
+            <Link href="/login" className="inline-flex">
               <Button variant="ghost" size="sm">登录</Button>
             </Link>
-            <Link href="/register">
+            <Link href="/register" className="inline-flex">
               <Button size="sm" className="bg-primary hover:bg-primary/90">免费注册</Button>
             </Link>
           </div>
@@ -81,7 +81,7 @@ export default function LandingPage() {
               让 AI 基于你的教材回答问题，精准、可追溯、可控。
             </p>
             <div className="mt-8 flex items-center gap-4">
-              <Link href="/register">
+              <Link href="/register" className="inline-flex">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 gap-2">
                   开始免费体验 <ArrowRight className="w-4 h-4" />
                 </Button>

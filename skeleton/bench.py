@@ -458,6 +458,8 @@ def build_report(results: list[dict]) -> str:
         verdict = "有限提升 — skill 在难题/复杂场景有提升"
     elif delta > 0:
         verdict = "价值有限 — 差距不显著（可能是噪声），LLM baseline 已经强"
+    elif delta == 0:
+        verdict = "价值有限 — 与 baseline 持平，暂未证明 skill 带来额外收益"
     else:
         verdict = "不建议交付 — skill 反而拖累 LLM，需排查 prompt 或重做"
     lines.append(f"  {verdict}")

@@ -26,9 +26,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: dev-secret-change-in-production
       STORAGE_DIR: /app/storage
+      PYTHONPATH: /app:/app/skeleton
     volumes:
       - ./apps/api:/app
-      - ./packages/skeleton:/app/skeleton
+      - ./skeleton:/app/skeleton
+      - ./prompts:/app/prompts
       - storage_data:/app/storage
     depends_on:
       - postgres
@@ -41,9 +43,11 @@ services:
       DATABASE_URL: postgresql+asyncpg://skillhub:skillhub_dev@postgres:5432/skillhub
       REDIS_URL: redis://redis:6379/0
       STORAGE_DIR: /app/storage
+      PYTHONPATH: /app:/app/skeleton
     volumes:
       - ./apps/api:/app
-      - ./packages/skeleton:/app/skeleton
+      - ./skeleton:/app/skeleton
+      - ./prompts:/app/prompts
       - storage_data:/app/storage
     depends_on:
       - postgres

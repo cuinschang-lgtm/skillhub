@@ -27,6 +27,8 @@ import zipfile
 from pathlib import Path
 import requests
 
+from pdf_utils import split_pdf_pages
+
 MINERU_BASE = "https://mineru.net/api/v4"
 
 
@@ -149,29 +151,9 @@ def split_pdf_for_mineru(
     V1 修订: 切块输出到 parts_dir（默认 <pdf_parent>/.textbook2skill_parts/），
     不再污染源 PDF 所在目录。
     """
-    import subprocess
-    info = subprocess.run(["pdfinfo", str(pdf_path)], capture_output=True, text=True, check=True).stdout
-    # P22 fix: 仅做"存在性检查"，不要对整行 "Pages:           240" 做 int() 解析
-    pages_lines = [x for x in info.splitlines() if x.startswith("Pages:")]
-    if not pages_lines:
-        return [pdf_path]
-    total = int(info.split("Pages:")[1].split("\n")[0].strip())
-    if total <= max_pages:
-        return [pdf_path]
-
     if parts_dir is None:
         parts_dir = pdf_path.parent / ".textbook2skill_parts"
-    parts_dir.mkdir(parents=True, exist_ok=True)
-    parts = []
-    for start in range(1, total + 1, max_pages):
-        end = min(start + max_pages - 1, total)
-        out = parts_dir / f"{pdf_path.stem}_p{start}-{end}.pdf"
-        subprocess.run(
-            ["qpdf", str(pdf_path), "--pages", ".", f"{start}-{end}", "--", str(out)],
-            check=True,
-        )
-        parts.append(out)
-    return parts
+    return split_pdf_pages(pdf_path, max_pages=max_pages, parts_dir=parts_dir)
 
 
 if __name__ == "__main__":

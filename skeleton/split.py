@@ -303,7 +303,41 @@ def split_by_anchor(markdown: str) -> list[Chapter]:
     return result
 
 
-# ---------- Strategy 4: LLM 兜底（V1 新实现）----------
+# ---------- Strategy 4: page-break 兜底 ----------
+
+def split_by_page_break(markdown: str) -> list[Chapter]:
+    if "===PAGE_BREAK===" not in markdown:
+        return []
+
+    raw_pages = [page.strip() for page in markdown.split("===PAGE_BREAK===")]
+    pages = [page for page in raw_pages if page]
+    if len(pages) < 3:
+        return []
+
+    chapters: list[Chapter] = []
+    for idx, page in enumerate(pages, start=1):
+        title = ""
+        for line in page.splitlines():
+            clean = line.strip()
+            if not clean:
+                continue
+            title = clean
+            break
+        if not title:
+            title = f"第{idx}章"
+        chapters.append(
+            Chapter(
+                idx=idx,
+                title=title,
+                content=page,
+                source_strategy="page-break",
+                num=str(idx),
+            )
+        )
+    return chapters
+
+
+# ---------- Strategy 5: LLM 兜底（V1 新实现）----------
 
 LLM_SPLIT_PROMPT = """你是一个章节切分助手。下面是一本教材的 markdown（来自 OCR），可能 TOC 不规范、章节号丢失、layout 漂移。
 
@@ -409,6 +443,7 @@ def split_chapters(markdown: str, llm_client=None) -> list[Chapter]:
         ("toc-first", split_by_toc),
         ("h1-size", split_by_h1_size),
         ("semantic-anchor", split_by_anchor),
+        ("page-break", split_by_page_break),
     ]
     for name, fn in strategies:
         try:

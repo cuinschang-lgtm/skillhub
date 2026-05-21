@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey, JSON
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -33,6 +33,7 @@ class Task(Base):
     book_title = Column(String(500), nullable=False)
     domain = Column(String(200))
     skill_name = Column(String(64), nullable=False)
+    skill_slug = Column(String(64), nullable=False, default="textbook-skill")
     visibility = Column(String(20), default="private")
     llm_provider = Column(String(30), default="deepseek")
     ocr_provider = Column(String(30), default="mineru")
@@ -95,7 +96,7 @@ class Conversation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     title = Column(String(200))
-    active_skill_ids = Column(ARRAY(UUID(as_uuid=True)), default=[])
+    active_skill_ids = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 

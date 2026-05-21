@@ -40,6 +40,7 @@ from split import split_chapters
 from extract import extract_all
 from assemble import assemble
 from llm import LLMClient
+from pdf_utils import write_text_layer_markdown
 
 
 STAGES = ["probe", "ocr", "split", "extract", "assemble", "bench"]
@@ -146,9 +147,8 @@ def run_pipeline(args):
                         "扩展方式: 在 skeleton/ 加 ocr_<provider>.py"
                     )
             else:
-                import subprocess
                 markdown_path = work / "book.md"
-                subprocess.run(["pdftotext", str(args.pdf), str(markdown_path)], check=True)
+                write_text_layer_markdown(args.pdf, markdown_path)
                 print(f"PDF 有文字层，pdftotext → {markdown_path}", flush=True)
                 cached_md.write_text(markdown_path.read_text(encoding="utf-8"), encoding="utf-8")
                 save_stage(work, "ocr", status="ok", input_hash=ocr_input_hash, outputs=["ocr-output.md"])

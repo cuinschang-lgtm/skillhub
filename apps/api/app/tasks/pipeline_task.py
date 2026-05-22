@@ -123,6 +123,16 @@ def _fallback_text_extraction(pdf_path: Path, work_dir: Path) -> tuple[Path, str
     )
 
 
+def _should_prefer_local_rescue(probe: dict) -> bool:
+    return bool(
+        probe.get("needs_ocr")
+        and (
+            int(probe.get("pages", 0)) >= 400
+            or float(probe.get("size_mb", 0.0)) >= 55
+        )
+    )
+
+
 def _build_rescue_profile(probe: dict, markdown: str) -> dict:
     summary = summarize_markdown_text(markdown)
     empty_page_hits = len(re.findall(r"\[第\d+页内容为空\]", markdown))
@@ -152,6 +162,12 @@ def _build_extract_profile(chapters: list[dict], rescue_profile: dict) -> dict:
     chapter_count = len(chapters)
     rescue_enabled = bool(rescue_profile.get("enabled"))
     if rescue_enabled:
+        if int(rescue_profile.get("pages", 0)) >= 500 or float(rescue_profile.get("size_mb", 0.0)) >= 60:
+            return {
+                "max_workers": 2,
+                "max_input_chars": 14000,
+                "degraded": True,
+            }
         return {
             "max_workers": 3,
             "max_input_chars": 18000,
@@ -298,7 +314,18 @@ def run_pipeline_task(job_id: str, task_id: str):
             if task.ocr_provider != "mineru":
                 raise RuntimeError(f"Unsupported OCR provider: {task.ocr_provider}")
             mineru_token = os.environ.get("MINERU_TOKEN", "").strip()
-            if mineru_token:
+            prefer_local_rescue = _should_prefer_local_rescue(probe)
+            if prefer_local_rescue:
+                markdown_path, fallback_message = _fallback_text_extraction(Path(task.pdf_path), work_dir)
+                publish_progress(
+                    task_id,
+                    "ocr",
+                    "running",
+                    "检测到超大扫描版 PDF，已切换到轻量演示模式。" + fallback_message,
+                    progress=24,
+                    extra={"degraded": True, "mode": "large-pdf-local-rescue", "probe": probe},
+                )
+            elif mineru_token:
                 parts = split_pdf_for_mineru(Path(task.pdf_path), parts_dir=work_dir / "ocr_parts")
                 if len(parts) > 1:
                     md_paths = [ocr_pdf(part, work_dir / "ocr", token=mineru_token) for part in parts]
@@ -395,8 +422,12 @@ def run_pipeline_task(job_id: str, task_id: str):
 
         _update_task(task_uuid, current_stage="bench", progress_pct=90)
         publish_progress(task_id, "bench", "running", "正在执行 benchmark...", progress=90)
-        if rescue_profile["enabled"]:
-            allocation_total = 6
+        if rescue_profile["enabled"] and (
+            int(rescue_profile.get("pages", 0)) >= 500 or float(rescue_profile.get("size_mb", 0.0)) >= 60
+        ):
+            allocation_total = 2
+        elif rescue_profile["enabled"]:
+            allocation_total = 4
         else:
             allocation_total = 12 if len(chapters_json) <= 6 else 18
         allocation = _allocate(chapters_json, total=allocation_total)
@@ -406,7 +437,7 @@ def run_pipeline_task(job_id: str, task_id: str):
             client,
             prompts_dir,
             domain=task.domain or "通用",
-            max_workers=3 if rescue_profile["enabled"] else 6,
+            max_workers=2 if rescue_profile["enabled"] else 6,
         )
         if not questions:
             raise RuntimeError("Benchmark 出题失败，未生成任何题目")
@@ -418,7 +449,7 @@ def run_pipeline_task(job_id: str, task_id: str):
             client,
             prompts_dir,
             output_path=work_dir / "benchmark.json",
-            max_workers=4 if rescue_profile["enabled"] else 8,
+            max_workers=2 if rescue_profile["enabled"] else 8,
         )
         _update_task(task_uuid, current_stage="bench", progress_pct=98)
         publish_progress(task_id, "bench", "done", "Benchmark 完成", progress=98)

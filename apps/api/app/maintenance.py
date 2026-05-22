@@ -7,7 +7,6 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SessionLocal
 from app.models import BenchmarkResult, Skill
 
 
@@ -29,7 +28,14 @@ def _skill_dir_exists(skill: Skill) -> bool:
     return bool(skill_dir) and Path(skill_dir).exists()
 
 
+def _get_session_local():
+    from app.db import SessionLocal
+
+    return SessionLocal
+
+
 async def cleanup_stale_skills() -> int:
+    SessionLocal = _get_session_local()
     async with SessionLocal() as session:
         result = await session.execute(select(Skill))
         skills = list(result.scalars().all())

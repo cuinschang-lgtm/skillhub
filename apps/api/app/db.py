@@ -1,15 +1,14 @@
 from collections.abc import AsyncGenerator
 
-from pathlib import Path
-
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import normalize_database_url, settings
+from app.maintenance import ensure_storage_ready
 from app.models import Base
 
 
 Base.metadata.bind = None
-Path(settings.storage_dir).mkdir(parents=True, exist_ok=True)
+ensure_storage_ready(settings.storage_dir)
 engine = create_async_engine(
     normalize_database_url(settings.database_url, async_mode=True),
     future=True,

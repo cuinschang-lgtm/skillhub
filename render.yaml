@@ -18,8 +18,12 @@ services:
     runtime: docker
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     healthCheckPath: /health
+    disk:
+      name: skillhub-data
+      mountPath: /app/storage
+      sizeGB: 5
     envVars:
       - key: PUBLIC_BASE_URL
         value: https://skillhub-api-us5i.onrender.com
@@ -28,7 +32,7 @@ services:
           name: skillhub-db
           property: connectionString
       - key: STORAGE_DIR
-        value: ./storage
+        value: /app/storage
       - key: DEFAULT_LLM_PROVIDER
         value: deepseek
       - key: ALLOW_PARTIAL_SKILL

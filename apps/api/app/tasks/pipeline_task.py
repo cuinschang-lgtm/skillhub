@@ -10,7 +10,7 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import normalize_database_url, settings
 from app.models import BenchmarkResult, Skill, Task
 from app.tasks.celery_app import celery_app
 from app.ws.bus import progress_bus
@@ -37,7 +37,7 @@ def publish_progress(task_id: str, stage: str, status: str, message: str = "", p
     progress_bus.publish(task_id, json.dumps(payload, ensure_ascii=False))
 
 
-SYNC_DATABASE_URL = settings.database_url.replace("+aiosqlite", "")
+SYNC_DATABASE_URL = normalize_database_url(settings.database_url, async_mode=False)
 sync_engine = create_engine(SYNC_DATABASE_URL, future=True)
 
 

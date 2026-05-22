@@ -2,6 +2,27 @@ from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
 
+def normalize_database_url(url: str, *, async_mode: bool) -> str:
+    if url.startswith("sqlite:///") or url.startswith("sqlite+aiosqlite:///"):
+        return url if async_mode else url.replace("+aiosqlite", "")
+
+    normalized = url.replace("postgres://", "postgresql://", 1)
+    if async_mode:
+        if normalized.startswith("postgresql+asyncpg://"):
+            return normalized
+        if normalized.startswith("postgresql+psycopg2://"):
+            return normalized.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+        if normalized.startswith("postgresql://"):
+            return normalized.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return normalized
+
+    if normalized.startswith("postgresql+asyncpg://"):
+        return normalized.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+    if normalized.startswith("postgresql://"):
+        return normalized.replace("postgresql://", "postgresql+psycopg2://", 1)
+    return normalized
+
+
 class Settings(BaseSettings):
     model_config = ConfigDict(env_file=".env", extra="ignore")
 

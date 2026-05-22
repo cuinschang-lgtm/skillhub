@@ -1,13 +1,36 @@
 services:
   - type: web
+    name: skillhub-web
+    runtime: node
+    rootDir: apps/web
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- --hostname 0.0.0.0 --port 10000
+    healthCheckPath: /
+    envVars:
+      - key: SKILLHUB_SESSION_SECRET
+        generateValue: true
+      - key: SKILLHUB_API_BASE_URL
+        fromService:
+          type: web
+          name: skillhub-api
+          envVarKey: PUBLIC_BASE_URL
+
+  - type: web
     name: skillhub-api
     runtime: docker
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
+    dockerCommand: sh -c 'uvicorn app.main:app --host 0.0.0.0 --port 10000'
     plan: free
+    healthCheckPath: /health
     envVars:
+      - key: PUBLIC_BASE_URL
+        value: https://skillhub-api.onrender.com
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./storage/skillhub.db
+        fromDatabase:
+          name: skillhub-db
+          property: connectionString
       - key: STORAGE_DIR
         value: ./storage
       - key: DEFAULT_LLM_PROVIDER
@@ -15,4 +38,18 @@ services:
       - key: ALLOW_PARTIAL_SKILL
         value: "true"
       - key: CORS_ORIGINS
-        value: https://your-vercel-domain.vercel.app
+        value: https://skillhub-web.onrender.com
+      - key: DEEPSEEK_KEY
+        sync: false
+      - key: MINERU_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+databases:
+  - name: skillhub-db
+    plan: free
+    databaseName: skillhub
+    user: skillhub

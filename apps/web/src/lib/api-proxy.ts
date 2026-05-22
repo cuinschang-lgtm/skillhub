@@ -3,7 +3,21 @@ import { NextResponse } from "next/server";
 import { getDemoUserFromCookies } from "@/lib/demo-user";
 
 
-const API_BASE = process.env.SKILLHUB_API_BASE_URL || "http://127.0.0.1:8000";
+function getConfiguredApiBase() {
+  const explicitBase = process.env.SKILLHUB_API_BASE_URL;
+  if (explicitBase) {
+    return explicitBase;
+  }
+
+  const internalHostPort = process.env.SKILLHUB_API_HOSTPORT;
+  if (internalHostPort) {
+    return `http://${internalHostPort}`;
+  }
+
+  return "http://127.0.0.1:8000";
+}
+
+const API_BASE = getConfiguredApiBase();
 const IS_LOCAL_API =
   API_BASE.includes("127.0.0.1") ||
   API_BASE.includes("localhost");

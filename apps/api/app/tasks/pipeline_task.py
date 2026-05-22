@@ -186,6 +186,49 @@ def _build_extract_profile(chapters: list[dict], rescue_profile: dict) -> dict:
     }
 
 
+def _inject_rescue_overview_chapter(task: Task, work_dir: Path, markdown: str) -> None:
+    skill_dir = work_dir / "skill"
+    chapters_dir = skill_dir / "chapters"
+    if not chapters_dir.exists():
+        return
+
+    overview_path = chapters_dir / "00-教材总览.md"
+    if overview_path.exists():
+        return
+
+    snippet_lines: list[str] = []
+    for raw_line in markdown.splitlines():
+        line = raw_line.strip()
+        if not line or line == "===PAGE_BREAK===":
+            continue
+        if line.startswith("[第") and line.endswith("页内容为空]"):
+            continue
+        if len(line) < 8:
+            continue
+        snippet_lines.append(line)
+        if len(snippet_lines) >= 24:
+            break
+
+    if not snippet_lines:
+        return
+
+    excerpt = "\n".join(f"- {line[:120]}" for line in snippet_lines)
+    overview_md = (
+        f"# 教材总览：{task.book_title}\n\n"
+        "## 核心概念\n"
+        f"- **教材主题**: {task.book_title}\n"
+        f"- **所属领域**: {task.domain or '通用'}\n"
+        "- **资料来源**: PDF 文字层轻量提取\n"
+        "- **适用场景**: 全书概览与演示问答兜底\n\n"
+        "## 原文摘录\n"
+        f"{excerpt}\n\n"
+        "## 关联\n"
+        "- 前置: 暂无明确说明\n"
+        "- 应用: 用于概括全书主要内容与主题范围\n"
+    )
+    overview_path.write_text(overview_md, encoding="utf-8")
+
+
 def _should_skip_benchmark(rescue_profile: dict) -> bool:
     return bool(
         rescue_profile.get("enabled")
@@ -432,6 +475,8 @@ def run_pipeline_task(job_id: str, task_id: str):
             domain=task.domain or "",
             allow_partial=settings.allow_partial_skill or bool(rescue_profile["enabled"]),
         )
+        if rescue_profile["enabled"]:
+            _inject_rescue_overview_chapter(task, work_dir, markdown)
         _update_task(task_uuid, current_stage="assemble", progress_pct=84)
         publish_progress(task_id, "assemble", "done", "Skill 组装完成", progress=84)
 

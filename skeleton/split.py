@@ -541,16 +541,17 @@ def split_chapters(markdown: str, llm_client=None, *, rescue_mode: bool = False,
             return result
         print(f"[split] strategy={name} 只识别 {len(result)} 章，尝试下一个", flush=True)
 
-    # 全部失败 → LLM 兜底（如果有 client）
-    if llm_client is not None:
-        result = split_by_llm(markdown, llm_client)
-        if len(result) >= min_success_chapters:
-            return result
-
+    # 大扫描版教材优先走本地救援分块，避免先被远端 LLM 切章卡住。
     if rescue_mode:
         result = split_by_rescue_chunks(markdown)
         if len(result) >= min_success_chapters:
             print(f"[split] strategy=scan-rescue 识别 {len(result)} 块", flush=True)
+            return result
+
+    # 全部本地策略失败后，再尝试 LLM 兜底。
+    if llm_client is not None:
+        result = split_by_llm(markdown, llm_client)
+        if len(result) >= min_success_chapters:
             return result
 
     raise RuntimeError(

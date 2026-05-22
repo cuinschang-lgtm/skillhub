@@ -364,18 +364,33 @@ def run_pipeline_task(job_id: str, task_id: str):
         _update_task(task_uuid, current_stage="assemble", progress_pct=84)
         publish_progress(task_id, "assemble", "done", "Skill 组装完成", progress=84)
 
+        _update_task(task_uuid, current_stage="bench", progress_pct=90)
         publish_progress(task_id, "bench", "running", "正在执行 benchmark...", progress=90)
         if rescue_profile["enabled"]:
-            allocation_total = 8 if len(chapters_json) <= 6 else 10
+            allocation_total = 6
         else:
             allocation_total = 12 if len(chapters_json) <= 6 else 18
         allocation = _allocate(chapters_json, total=allocation_total)
-        questions = gen_questions(chapters_json, allocation, client, prompts_dir, domain=task.domain or "通用")
+        questions = gen_questions(
+            chapters_json,
+            allocation,
+            client,
+            prompts_dir,
+            domain=task.domain or "通用",
+            max_workers=3 if rescue_profile["enabled"] else 6,
+        )
         if not questions:
             raise RuntimeError("Benchmark 出题失败，未生成任何题目")
         questions = questions[:allocation_total]
         (work_dir / "benchmark-questions.json").write_text(json.dumps(questions, ensure_ascii=False, indent=2), encoding="utf-8")
-        run_benchmark(work_dir / "skill", questions, client, prompts_dir, output_path=work_dir / "benchmark.json")
+        run_benchmark(
+            work_dir / "skill",
+            questions,
+            client,
+            prompts_dir,
+            output_path=work_dir / "benchmark.json",
+            max_workers=4 if rescue_profile["enabled"] else 8,
+        )
         _update_task(task_uuid, current_stage="bench", progress_pct=98)
         publish_progress(task_id, "bench", "done", "Benchmark 完成", progress=98)
 

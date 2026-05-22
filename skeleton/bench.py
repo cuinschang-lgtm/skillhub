@@ -96,6 +96,8 @@ def gen_questions(
     client: LLMClient,
     prompt_dir: Path,
     domain: str = "通用",
+    *,
+    max_workers: int = 4,
 ) -> list[dict]:
     """按 allocation 并发出题"""
     prompt_template = load_prompt_block(prompt_dir / "question-gen.md")
@@ -110,7 +112,8 @@ def gen_questions(
             client, prompt_template, prefix, ch["title"], ch["content"], count, domain,
         )
 
-    with ThreadPoolExecutor(max_workers=11) as ex:
+    worker_count = max(1, min(max_workers, len(chapters)))
+    with ThreadPoolExecutor(max_workers=worker_count) as ex:
         for qs in ex.map(worker, chapters):
             all_qs.extend(qs)
     return all_qs
@@ -352,6 +355,8 @@ def run_benchmark(
     prompt_dir: Path,
     seed: int = 42,
     output_path: Path = Path("./benchmark.json"),
+    *,
+    max_workers: int = 6,
 ) -> dict:
     """跑 benchmark + 出报告"""
     import random
@@ -377,7 +382,8 @@ def run_benchmark(
         return idx, result
 
     results = [None] * len(questions)
-    with ThreadPoolExecutor(max_workers=20) as ex:
+    worker_count = max(1, min(max_workers, len(questions)))
+    with ThreadPoolExecutor(max_workers=worker_count) as ex:
         for idx, r in ex.map(process, [(i, q) for i, q in enumerate(questions)]):
             results[idx] = r
 

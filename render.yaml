@@ -11,22 +11,18 @@ services:
       - key: SKILLHUB_SESSION_SECRET
         generateValue: true
       - key: SKILLHUB_API_BASE_URL
-        fromService:
-          type: web
-          name: skillhub-api
-          envVarKey: PUBLIC_BASE_URL
+        value: https://skillhub-api-us5i.onrender.com
 
   - type: web
     name: skillhub-api
     runtime: docker
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
-    dockerCommand: sh -c 'uvicorn app.main:app --host 0.0.0.0 --port 10000'
     plan: free
     healthCheckPath: /health
     envVars:
       - key: PUBLIC_BASE_URL
-        value: https://skillhub-api.onrender.com
+        value: https://skillhub-api-us5i.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: skillhub-db
@@ -38,7 +34,7 @@ services:
       - key: ALLOW_PARTIAL_SKILL
         value: "true"
       - key: CORS_ORIGINS
-        value: https://skillhub-web.onrender.com
+        value: https://skillhub-web-2pjw.onrender.com
       - key: DEEPSEEK_KEY
         sync: false
       - key: MINERU_TOKEN

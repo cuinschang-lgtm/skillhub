@@ -46,11 +46,15 @@ export async function proxyToApi(path: string, init: RequestInit = {}) {
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    const requestInit: RequestInit & { duplex?: "half" } = {
       ...init,
       headers,
       cache: "no-store",
-    });
+    };
+    if (init.body) {
+      requestInit.duplex = "half";
+    }
+    response = await fetch(`${API_BASE}${path}`, requestInit);
   } catch (error) {
     const detail =
       error instanceof Error && error.message

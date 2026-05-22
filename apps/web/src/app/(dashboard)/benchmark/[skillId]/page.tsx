@@ -100,6 +100,7 @@ export default function BenchmarkPage() {
 
   const verdictColor = benchmark?.delta_pct && benchmark.delta_pct > 0 ? "text-green-600" : "text-amber-600";
   const verdictBg = benchmark?.delta_pct && benchmark.delta_pct > 0 ? "bg-green-50" : "bg-amber-50";
+  const statusText = benchmark?.delta_pct && benchmark.delta_pct > 0 ? "编译成功" : "编译完成";
 
   return (
     <div>
@@ -136,8 +137,13 @@ export default function BenchmarkPage() {
             <CardContent className="p-6 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <CheckCircle2 className="w-10 h-10 text-green-500" />
-                <div>
-                  <h2 className={`text-2xl font-bold ${verdictColor}`}>{benchmark.verdict}</h2>
+                <div className="min-w-0">
+                  <div className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${verdictColor} bg-white/80`}>
+                    {statusText}
+                  </div>
+                  <h2 className={`mt-3 text-lg font-bold leading-7 ${verdictColor} break-words`}>
+                    {benchmark.verdict}
+                  </h2>
                   <p className="text-sm text-muted-foreground mt-1">
                     {skill.book_title} 已编译完成，共 {skill.chapter_count || 0} 章。
                   </p>
@@ -213,7 +219,7 @@ export default function BenchmarkPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button className="bg-primary hover:bg-primary/90 gap-2" onClick={() => router.push("/chat")}>
+            <Button className="bg-primary hover:bg-primary/90 gap-2" onClick={() => router.push(`/chat?skillId=${skill.id}`)}>
               <MessageCircle className="w-4 h-4" /> 开始问答
             </Button>
             <Button variant="outline" className="gap-2" onClick={() => router.push("/knowledge")}>

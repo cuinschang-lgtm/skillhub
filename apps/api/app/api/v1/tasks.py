@@ -68,7 +68,15 @@ async def create_task(
     input_dir = work_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     pdf_path = input_dir / "input.pdf"
-    pdf_path.write_bytes(await pdf.read())
+    try:
+        with pdf_path.open("wb") as output:
+            while True:
+                chunk = await pdf.read(1024 * 1024)
+                if not chunk:
+                    break
+                output.write(chunk)
+    finally:
+        await pdf.close()
 
     skill_name = skill_name.strip() or book_title.strip()
     skill_slug = slugify_skill_name(skill_name, fallback="textbook-skill")

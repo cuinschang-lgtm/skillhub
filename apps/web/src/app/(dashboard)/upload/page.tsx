@@ -8,8 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 
-const MAX_UPLOAD_MB = 20;
-const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+function formatFileSize(bytes: number) {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
 
 export default function UploadPage() {
   const router = useRouter();
@@ -29,10 +33,6 @@ export default function UploadPage() {
     e.preventDefault();
     const dropped = e.dataTransfer.files[0];
     if (dropped?.type === "application/pdf") {
-      if (dropped.size > MAX_UPLOAD_BYTES) {
-        setError(`当前演示站点单次上传建议不超过 ${MAX_UPLOAD_MB}MB。请先压缩 PDF，或改走直传后端/对象存储。`);
-        return;
-      }
       setError("");
       setFile(dropped);
     }
@@ -40,10 +40,6 @@ export default function UploadPage() {
 
   const handleSubmit = async () => {
     if (!file || !bookTitle || !domain) return;
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setError(`当前演示站点单次上传建议不超过 ${MAX_UPLOAD_MB}MB。你当前文件约 ${(file.size / 1024 / 1024).toFixed(1)}MB。`);
-      return;
-    }
     setSubmitting(true);
     setError("");
     try {
@@ -125,10 +121,6 @@ export default function UploadPage() {
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (!f) return;
-                    if (f.size > MAX_UPLOAD_BYTES) {
-                      setError(`当前演示站点单次上传建议不超过 ${MAX_UPLOAD_MB}MB。你当前文件约 ${(f.size / 1024 / 1024).toFixed(1)}MB。`);
-                      return;
-                    }
                     setError("");
                     setFile(f);
                   }}
@@ -143,7 +135,7 @@ export default function UploadPage() {
                 <FileText className="w-5 h-5 text-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                  <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
                 </div>
                 <Check className="w-4 h-4 text-green-500" />
                 <button onClick={() => setFile(null)} className="p-1 hover:bg-muted rounded">
@@ -251,7 +243,7 @@ export default function UploadPage() {
           </div>
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
-            线上演示站点建议上传不超过 {MAX_UPLOAD_MB}MB 的 PDF。更大的文件建议改为直传后端或对象存储，不要先经过前端代理。
+            当前版本已支持单次上传较大的 PDF，建议控制在 50-100MB 以内。文件越大，上传、OCR 和编译耗时越久。
             若上传的是扫描版 PDF，仍需要服务端已配置可用的 OCR token；否则只会尝试提取原始文字层。
           </div>
 

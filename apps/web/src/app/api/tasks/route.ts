@@ -7,9 +7,14 @@ export async function GET() {
 
 
 export async function POST(req: Request) {
-  const formData = await req.formData();
+  const headers = new Headers();
+  const contentType = req.headers.get("content-type");
+  if (contentType) {
+    headers.set("content-type", contentType);
+  }
   return proxyToApi("/api/v1/tasks", {
     method: "POST",
-    body: formData,
+    headers,
+    body: req.body,
   });
 }

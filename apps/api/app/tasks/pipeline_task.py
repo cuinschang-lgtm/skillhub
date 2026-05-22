@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 import traceback
 import uuid
 from datetime import datetime
@@ -14,6 +15,35 @@ from app.config import normalize_database_url, settings
 from app.models import BenchmarkResult, Skill, Task
 from app.tasks.celery_app import celery_app
 from app.ws.bus import progress_bus
+
+def _resolve_support_dir(name: str) -> Path:
+    env_name = f"SKILLHUB_{name.upper()}_DIR"
+    candidates: list[Path] = []
+
+    env_value = os.environ.get(env_name)
+    if env_value:
+        candidates.append(Path(env_value))
+
+    file_path = Path(__file__).resolve()
+    candidates.extend(parent / name for parent in file_path.parents)
+    candidates.append(Path.cwd() / name)
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate.exists():
+            return candidate
+
+    searched = ", ".join(str(path) for path in seen)
+    raise RuntimeError(f"Unable to locate {name} directory. Checked: {searched}")
+
+
+SKELETON_DIR = _resolve_support_dir("skeleton")
+PROMPTS_DIR = _resolve_support_dir("prompts")
+if str(SKELETON_DIR) not in sys.path:
+    sys.path.insert(0, str(SKELETON_DIR))
 
 from probe import probe_pdf
 from split import split_chapters
@@ -183,7 +213,7 @@ def run_pipeline_task(job_id: str, task_id: str):
     task_uuid = uuid.UUID(task_id)
     task = _load_task(task_uuid)
     work_dir = Path(task.work_dir)
-    prompts_dir = Path(__file__).resolve().parents[4] / "prompts"
+    prompts_dir = PROMPTS_DIR
     _set_default_api_keys()
 
     _update_task(task_uuid, status="running", current_stage="probe", progress_pct=5, started_at=datetime.utcnow())

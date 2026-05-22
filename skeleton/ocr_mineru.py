@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MinerU OCR adapter（最小骨架）
 
 Input:  PDF 路径 + MINERU_TOKEN 环境变量

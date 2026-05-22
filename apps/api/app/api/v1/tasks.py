@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -124,7 +126,7 @@ async def get_task(
     if not task or task.user_id != user.id:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    skill_id: str | None = None
+    skill_id: Optional[str] = None
     skill_result = await db.execute(select(Skill).where(Skill.task_id == task.id))
     skill = skill_result.scalar_one_or_none()
     if skill:

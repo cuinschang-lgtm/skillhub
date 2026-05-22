@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """LLM 客户端抽象（V1 修订版）
 
 设计原则:

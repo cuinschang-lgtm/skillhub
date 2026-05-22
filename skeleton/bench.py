@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Benchmark runner（V1 修订版，必跑）
 
 Input:  skill 目录 + LLM client + benchmark 出题数据

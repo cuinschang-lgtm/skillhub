@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """端到端编排器（V1 修订版）
 
 把 step 2-7 串起来。Step 1 (问用户) 和 Step 8 (安装) 是交互式的，不在这里跑。

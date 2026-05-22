@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """章节切分（多策略 chain，最小骨架）
 
 Input:  full markdown (str)

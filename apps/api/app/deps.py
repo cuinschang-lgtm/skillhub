@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Optional
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy import select
@@ -19,9 +22,9 @@ class DemoUser:
 
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
-    x_demo_email: str | None = Header(default=None),
-    x_demo_role: str | None = Header(default=None),
-    x_demo_name: str | None = Header(default=None),
+    x_demo_email: Optional[str] = Header(default=None),
+    x_demo_role: Optional[str] = Header(default=None),
+    x_demo_name: Optional[str] = Header(default=None),
 ) -> User:
     email = (x_demo_email or "").strip().lower()
     if not email:

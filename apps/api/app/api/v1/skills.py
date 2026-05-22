@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc, func, or_, select
+from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -38,6 +38,16 @@ def _to_response(skill: Skill) -> SkillResponse:
     )
 
 
+def _skill_dir_exists(skill: Skill) -> bool:
+    skill_dir = (skill.skill_dir or "").strip()
+    return bool(skill_dir) and Path(skill_dir).exists()
+
+
+def _ensure_skill_available(skill: Skill) -> None:
+    if not _skill_dir_exists(skill):
+        raise HTTPException(status_code=410, detail="Skill 文件已失效，请重新编译该教材")
+
+
 @router.get("")
 async def list_skills(
     search: str = "",
@@ -56,12 +66,13 @@ async def list_skills(
     if domain:
         stmt = stmt.where(Skill.domain.ilike(f"%{domain.strip()}%"))
 
-    total_stmt = select(func.count()).select_from(stmt.subquery())
-    total = int((await db.execute(total_stmt)).scalar_one())
-
-    stmt = stmt.order_by(desc(Skill.created_at)).offset((page - 1) * page_size).limit(page_size)
+    stmt = stmt.order_by(desc(Skill.created_at))
     result = await db.execute(stmt)
-    items = list(result.scalars().all())
+    visible_items = [skill for skill in result.scalars().all() if _skill_dir_exists(skill)]
+    total = len(visible_items)
+    start = max(0, (page - 1) * page_size)
+    end = start + page_size
+    items = visible_items[start:end]
 
     return {
         "items": [_to_response(skill).model_dump() for skill in items],
@@ -80,6 +91,7 @@ async def get_skill(
     skill = await db.get(Skill, uuid.UUID(skill_id))
     if not skill or (skill.visibility != "public" and skill.user_id != user.id):
         raise HTTPException(status_code=404, detail="Skill not found")
+    _ensure_skill_available(skill)
 
     bench_result = await db.execute(select(BenchmarkResult).where(BenchmarkResult.skill_id == skill.id))
     bench = bench_result.scalar_one_or_none()
@@ -113,6 +125,7 @@ async def get_chapter(
     skill = await db.get(Skill, uuid.UUID(skill_id))
     if not skill or (skill.visibility != "public" and skill.user_id != user.id):
         raise HTTPException(status_code=404, detail="Skill not found")
+    _ensure_skill_available(skill)
 
     chapter_path = (Path(skill.skill_dir) / "chapters" / filename).resolve()
     chapters_dir = (Path(skill.skill_dir) / "chapters").resolve()
@@ -134,6 +147,7 @@ async def get_benchmark(
     skill = await db.get(Skill, uuid.UUID(skill_id))
     if not skill or (skill.visibility != "public" and skill.user_id != user.id):
         raise HTTPException(status_code=404, detail="Skill not found")
+    _ensure_skill_available(skill)
     bench_result = await db.execute(select(BenchmarkResult).where(BenchmarkResult.skill_id == skill.id))
     bench = bench_result.scalar_one_or_none()
     if not bench:

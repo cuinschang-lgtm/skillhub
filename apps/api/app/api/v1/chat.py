@@ -118,7 +118,7 @@ async def ask_question(
         for skill in skills:
             skill_dir = Path(skill.skill_dir)
             if not skill_dir.exists():
-                raise HTTPException(status_code=500, detail=f"Skill directory missing for {skill.book_title}")
+                continue
 
             skill_md, chapters = load_skill(skill_dir)
             chapter_topics = _parse_chapter_topics(skill_md, list(chapters.keys()))
@@ -150,6 +150,9 @@ async def ask_question(
                     excerpt=_chapter_excerpt(chapter_content),
                 )
             )
+
+        if not references:
+            raise HTTPException(status_code=410, detail="所选 Skill 文件已失效，请返回知识库或重新编译教材后再试")
 
         reference_block = "\n\n---\n\n".join(references) if references else "(未命中教材章节，请谨慎回答)"
         system = (

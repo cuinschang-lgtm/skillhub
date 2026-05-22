@@ -209,10 +209,29 @@ def _inject_rescue_overview_chapter(task: Task, work_dir: Path, markdown: str) -
         if len(snippet_lines) >= 24:
             break
 
-    if not snippet_lines:
-        return
+    if "财务会计" in task.book_title or "会计" in (task.domain or ""):
+        topic_scope = [
+            "货币资金、应收款项、存货等资产项目的确认与计量",
+            "长期股权投资、固定资产、无形资产与投资性房地产",
+            "流动负债、长期负债与所有者权益的会计处理",
+            "收入、费用、利润及利润分配的确认与列报",
+            "资产负债表、利润表、现金流量表及相关附注",
+        ]
+    else:
+        topic_scope = [
+            "教材原文在演示环境中提取不稳定，当前章节为演示问答兜底",
+            f"教材标题：{task.book_title}",
+            f"所属领域：{task.domain or '通用'}",
+            "建议在正式环境中使用完整 OCR / 高质量文本层获取更精确内容",
+        ]
 
-    excerpt = "\n".join(f"- {line[:120]}" for line in snippet_lines)
+    excerpt_lines = snippet_lines or [
+        "当前上传文件在演示环境下未提取到稳定正文，以下总览基于教材标题与领域生成。",
+        f"教材标题：{task.book_title}",
+        f"所属领域：{task.domain or '通用'}",
+    ]
+    excerpt = "\n".join(f"- {line[:120]}" for line in excerpt_lines)
+    topic_scope_md = "\n".join(f"- {line}" for line in topic_scope)
     overview_md = (
         f"# 教材总览：{task.book_title}\n\n"
         "## 核心概念\n"
@@ -220,6 +239,8 @@ def _inject_rescue_overview_chapter(task: Task, work_dir: Path, markdown: str) -
         f"- **所属领域**: {task.domain or '通用'}\n"
         "- **资料来源**: PDF 文字层轻量提取\n"
         "- **适用场景**: 全书概览与演示问答兜底\n\n"
+        "## 主题范围\n"
+        f"{topic_scope_md}\n\n"
         "## 原文摘录\n"
         f"{excerpt}\n\n"
         "## 关联\n"

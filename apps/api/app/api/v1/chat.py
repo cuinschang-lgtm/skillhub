@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -36,6 +37,7 @@ PROMPTS_DIR = _resolve_support_dir("prompts")
 if str(SKELETON_DIR) not in sys.path:
     sys.path.insert(0, str(SKELETON_DIR))
 
+from assemble import extract_keywords  # noqa: E402
 from bench import _parse_chapter_topics, load_skill, route_chapter_topk  # noqa: E402
 from llm import LLMClient, LLMError  # noqa: E402
 
@@ -45,6 +47,13 @@ router = APIRouter()
 ROUTING_PROMPT = (PROMPTS_DIR / "routing.md").read_text(encoding="utf-8")
 MAX_REFERENCE_CHARS = 4000
 MAX_EXCERPT_CHARS = 220
+MAX_OVERVIEW_CHAPTERS = 3
+LOW_SIGNAL_MARKERS = (
+    "[抽取失败",
+    "本章原文无内容",
+    "无法提取任何术语",
+    "暂无明确说明",
+)
 
 
 class ChatRequest(BaseModel):
@@ -69,6 +78,42 @@ def _chapter_excerpt(content: str) -> str:
     if len(cleaned) <= MAX_EXCERPT_CHARS:
         return cleaned
     return f"{cleaned[:MAX_EXCERPT_CHARS].rstrip()}..."
+
+
+def _is_overview_question(question: str) -> bool:
+    normalized = re.sub(r"\s+", "", question)
+    return (
+        any(token in normalized for token in ("概括", "概述", "总结", "介绍", "梳理"))
+        and any(token in normalized for token in ("主要内容", "核心内容", "本书", "全书", "教材", "讲了什么"))
+    )
+
+
+def _chapter_is_usable(content: str) -> bool:
+    cleaned = content.strip()
+    if len(cleaned) < 180:
+        return False
+    if any(marker in cleaned for marker in LOW_SIGNAL_MARKERS):
+        return False
+    if extract_keywords(cleaned):
+        return True
+    return cleaned.count("## ") >= 3 and "### 例" in cleaned
+
+
+def _skill_overview_excerpt(skill_md: str) -> str:
+    cleaned = re.sub(r"^---[\s\S]*?---\s*", "", skill_md, count=1).strip()
+    if not cleaned:
+        return ""
+
+    lines: list[str] = []
+    for line in cleaned.splitlines():
+        line = line.rstrip()
+        if not line:
+            continue
+        if line.startswith("|") or line.startswith("#") or line.startswith("本 skill") or line.startswith("## 章节速查表"):
+            lines.append(line)
+        if len("\n".join(lines)) >= MAX_REFERENCE_CHARS:
+            break
+    return "\n".join(lines)[:MAX_REFERENCE_CHARS].strip()
 
 
 async def _load_visible_skill(skill_id: str, db: AsyncSession, user: User) -> Skill:
@@ -121,38 +166,65 @@ async def ask_question(
                 continue
 
             skill_md, chapters = load_skill(skill_dir)
-            chapter_topics = _parse_chapter_topics(skill_md, list(chapters.keys()))
-            selected = route_chapter_topk(
-                client=client,
-                prompt_template=ROUTING_PROMPT,
-                question={"question": question, "topic": skill.domain or skill.book_title},
-                chapter_topics=chapter_topics,
-                k=1,
-            )
+            is_overview = _is_overview_question(question)
+            if is_overview:
+                selected = [
+                    chapter_name
+                    for chapter_name, chapter_content in chapters.items()
+                    if _chapter_is_usable(chapter_content)
+                ][:MAX_OVERVIEW_CHAPTERS]
+            else:
+                chapter_topics = _parse_chapter_topics(skill_md, list(chapters.keys()))
+                selected = route_chapter_topk(
+                    client=client,
+                    prompt_template=ROUTING_PROMPT,
+                    question={"question": question, "topic": skill.domain or skill.book_title},
+                    chapter_topics=chapter_topics,
+                    k=3,
+                )
 
-            if not selected:
+            added_reference = False
+            for chapter_name in selected:
+                chapter_content = chapters.get(chapter_name, "").strip()
+                if not _chapter_is_usable(chapter_content):
+                    continue
+                references.append(
+                    f"[教材: {skill.book_title} | 章节: {chapter_name}]\n"
+                    f"{chapter_content[:MAX_REFERENCE_CHARS]}"
+                )
+                citations.append(
+                    ChatCitation(
+                        skill_id=str(skill.id),
+                        skill_name=skill.book_title,
+                        chapter=chapter_name,
+                        excerpt=_chapter_excerpt(chapter_content),
+                    )
+                )
+                added_reference = True
+                if not is_overview:
+                    break
+
+            if added_reference:
                 continue
 
-            chapter_name = selected[0]
-            chapter_content = chapters.get(chapter_name, "").strip()
-            if not chapter_content:
+            skill_overview = _skill_overview_excerpt(skill_md)
+            if not skill_overview:
                 continue
-
             references.append(
-                f"[教材: {skill.book_title} | 章节: {chapter_name}]\n"
-                f"{chapter_content[:MAX_REFERENCE_CHARS]}"
+                f"[教材总览: {skill.book_title}]\n"
+                f"{skill_overview}"
             )
             citations.append(
                 ChatCitation(
                     skill_id=str(skill.id),
                     skill_name=skill.book_title,
-                    chapter=chapter_name,
-                    excerpt=_chapter_excerpt(chapter_content),
+                    chapter="SKILL.md",
+                    excerpt=_chapter_excerpt(skill_overview),
                 )
             )
 
         if not references:
-            raise HTTPException(status_code=410, detail="所选 Skill 文件已失效，请返回知识库或重新编译教材后再试")
+            raise HTTPException(status_code=410, detail="所选 Skill 内容不足或已失效，请返回知识库重新编译教材后再试")
 
         reference_block = "\n\n---\n\n".join(references) if references else "(未命中教材章节，请谨慎回答)"
         system = (

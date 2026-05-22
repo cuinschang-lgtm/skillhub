@@ -186,7 +186,22 @@ def _build_extract_profile(chapters: list[dict], rescue_profile: dict) -> dict:
     }
 
 
-def _save_skill_and_benchmark(task: Task, work_dir: Path) -> str:
+def _should_skip_benchmark(rescue_profile: dict) -> bool:
+    return bool(
+        rescue_profile.get("enabled")
+        and (
+            int(rescue_profile.get("pages", 0)) >= 500
+            or float(rescue_profile.get("size_mb", 0.0)) >= 60
+        )
+    )
+
+
+def _save_skill_and_benchmark(
+    task: Task,
+    work_dir: Path,
+    *,
+    empty_benchmark_verdict: str = "未生成 benchmark",
+) -> str:
     skill_dir = work_dir / "skill"
     chapters = sorted((skill_dir / "chapters").glob("*.md"))
     benchmark_path = work_dir / "benchmark.json"
@@ -252,7 +267,7 @@ def _save_skill_and_benchmark(task: Task, work_dir: Path) -> str:
     for line in report.splitlines():
         if line.startswith("  ") and ("推荐" in line or "交付" in line or "价值有限" in line):
             verdict_line = line.strip()
-    verdict = verdict_line or ("已完成 benchmark" if benchmark_results else "未生成 benchmark")
+    verdict = verdict_line or ("已完成 benchmark" if benchmark_results else empty_benchmark_verdict)
 
     with Session(sync_engine) as db:
         skill = Skill(
@@ -419,6 +434,37 @@ def run_pipeline_task(job_id: str, task_id: str):
         )
         _update_task(task_uuid, current_stage="assemble", progress_pct=84)
         publish_progress(task_id, "assemble", "done", "Skill 组装完成", progress=84)
+
+        if _should_skip_benchmark(rescue_profile):
+            skill_id = _save_skill_and_benchmark(
+                task,
+                work_dir,
+                empty_benchmark_verdict="演示模式已生成可问答 Skill，benchmark 已跳过",
+            )
+            _update_task(
+                task_uuid,
+                status="completed",
+                current_stage="done",
+                progress_pct=100,
+                completed_at=datetime.utcnow(),
+            )
+            publish_progress(
+                task_id,
+                "bench",
+                "skipped",
+                "演示模式已跳过 benchmark，可直接开始问答。",
+                progress=98,
+                extra={"benchmark_skipped": True, "rescue_profile": rescue_profile},
+            )
+            publish_progress(
+                task_id,
+                "done",
+                "completed",
+                "编译完成，可直接进入问答。",
+                progress=100,
+                extra={"skill_id": skill_id, "benchmark_skipped": True},
+            )
+            return {"status": "completed", "task_id": task_id, "skill_id": skill_id}
 
         _update_task(task_uuid, current_stage="bench", progress_pct=90)
         publish_progress(task_id, "bench", "running", "正在执行 benchmark...", progress=90)

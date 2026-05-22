@@ -51,11 +51,17 @@ def load_extraction_prompt(prompt_dir: Path) -> str:
     return m.group(1)
 
 
-def extract_one_chapter(client: LLMClient, prompt_template: str, chapter: dict) -> str:
+def extract_one_chapter(
+    client: LLMClient,
+    prompt_template: str,
+    chapter: dict,
+    *,
+    max_input_chars: int = 30000,
+) -> str:
     """处理单章。返回抽取后的 markdown。失败抛 LLMError。"""
     text = chapter["content"]
-    if len(text) > 30000:
-        text = text[:30000] + "\n[...章节后段省略...]"
+    if len(text) > max_input_chars:
+        text = text[:max_input_chars] + "\n[...章节后段省略...]"
     prompt = prompt_template.replace("{chapter_text}", text)
     return client.chat([{"role": "user", "content": prompt}])
 
@@ -66,6 +72,7 @@ def extract_all(
     client: LLMClient,
     prompt_dir: Path,
     max_workers: int = 11,
+    max_input_chars: int = 30000,
     *,
     allow_partial: bool = False,
 ) -> tuple[list[ExtractResult], Path]:
@@ -87,7 +94,12 @@ def extract_all(
         filename = f"{idx:02d}-{safe_title}.md"
         path = output_dir / filename
         try:
-            result = extract_one_chapter(client, prompt_template, chapter)
+            result = extract_one_chapter(
+                client,
+                prompt_template,
+                chapter,
+                max_input_chars=max_input_chars,
+            )
             path.write_text(result, encoding="utf-8")
             return ExtractResult(idx=idx, title=title, path=path, success=True)
         except LLMError as e:
@@ -109,7 +121,8 @@ def extract_all(
                 success=False, error=str(e), error_kind="unknown",
             )
 
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+    worker_count = max(1, min(max_workers, len(chapters)))
+    with ThreadPoolExecutor(max_workers=worker_count) as ex:
         results = list(ex.map(worker, chapters))
 
     # 持久化 manifest

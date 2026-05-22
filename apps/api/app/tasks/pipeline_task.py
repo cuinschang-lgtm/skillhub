@@ -148,6 +148,28 @@ def _build_rescue_profile(probe: dict, markdown: str) -> dict:
     }
 
 
+def _build_extract_profile(chapters: list[dict], rescue_profile: dict) -> dict:
+    chapter_count = len(chapters)
+    rescue_enabled = bool(rescue_profile.get("enabled"))
+    if rescue_enabled:
+        return {
+            "max_workers": 3,
+            "max_input_chars": 18000,
+            "degraded": True,
+        }
+    if chapter_count >= 18:
+        return {
+            "max_workers": 4,
+            "max_input_chars": 22000,
+            "degraded": True,
+        }
+    return {
+        "max_workers": 6,
+        "max_input_chars": 30000,
+        "degraded": False,
+    }
+
+
 def _save_skill_and_benchmark(task: Task, work_dir: Path) -> str:
     skill_dir = work_dir / "skill"
     chapters = sorted((skill_dir / "chapters").glob("*.md"))
@@ -270,6 +292,7 @@ def run_pipeline_task(job_id: str, task_id: str):
         _update_task(task_uuid, current_stage="probe", progress_pct=12)
         publish_progress(task_id, "probe", "done", f"识别为 PDF，共 {probe.get('pages', 0)} 页", progress=12, extra=probe)
 
+        _update_task(task_uuid, current_stage="ocr", progress_pct=18)
         publish_progress(task_id, "ocr", "running", "正在提取文本 / OCR...", progress=18)
         if probe["needs_ocr"]:
             if task.ocr_provider != "mineru":
@@ -307,6 +330,7 @@ def run_pipeline_task(job_id: str, task_id: str):
         _update_task(task_uuid, current_stage="ocr", progress_pct=32)
         publish_progress(task_id, "ocr", "done", f"文本已生成，共 {len(markdown)} 字符", progress=32)
 
+        _update_task(task_uuid, current_stage="split", progress_pct=40)
         publish_progress(task_id, "split", "running", "正在切分章节...", progress=40)
         client = LLMClient.from_env(task.llm_provider)
         if rescue_profile["enabled"]:
@@ -341,17 +365,22 @@ def run_pipeline_task(job_id: str, task_id: str):
         _update_task(task_uuid, current_stage="split", progress_pct=48)
         publish_progress(task_id, "split", "done", f"识别 {len(chapters_json)} 章", progress=48)
 
+        extract_profile = _build_extract_profile(chapters_json, rescue_profile)
+        _update_task(task_uuid, current_stage="extract", progress_pct=56)
         publish_progress(task_id, "extract", "running", "正在抽取结构化知识...", progress=56)
         extract_all(
             chapters_json,
             work_dir / "extracted",
             client,
             prompts_dir,
+            max_workers=extract_profile["max_workers"],
+            max_input_chars=extract_profile["max_input_chars"],
             allow_partial=settings.allow_partial_skill or bool(rescue_profile["enabled"]),
         )
         _update_task(task_uuid, current_stage="extract", progress_pct=70)
         publish_progress(task_id, "extract", "done", "结构化抽取完成", progress=70)
 
+        _update_task(task_uuid, current_stage="assemble", progress_pct=78)
         publish_progress(task_id, "assemble", "running", "正在组装 Skill...", progress=78)
         assemble(
             work_dir / "extracted",

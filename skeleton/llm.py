@@ -148,24 +148,28 @@ class LLMClient:
                 "base_url": "https://api.deepseek.com",
                 "model": "deepseek-v4-flash",
                 "env_key": "DEEPSEEK_KEY",
+                "fallback_env_keys": ["DEEPSEEK_API_KEY"],
                 "flavor": "openai-compat",
             },
             "openai": {
                 "base_url": "https://api.openai.com/v1",
                 "model": "gpt-4o-mini",
                 "env_key": "OPENAI_API_KEY",
+                "fallback_env_keys": [],
                 "flavor": "openai-compat",
             },
             "anthropic": {
                 "base_url": "https://api.anthropic.com",
                 "model": "claude-sonnet-4-7",
                 "env_key": "ANTHROPIC_API_KEY",
+                "fallback_env_keys": [],
                 "flavor": "anthropic",
             },
             "custom": {
                 "base_url": base_url_override or "",
                 "model": model_override or "",
                 "env_key": env_key_override or "LLM_API_KEY",
+                "fallback_env_keys": [],
                 "flavor": "openai-compat",
             },
         }
@@ -179,8 +183,17 @@ class LLMClient:
                 )
         key = os.environ.get(cfg["env_key"], "")
         if not key:
+            for fallback_key in cfg.get("fallback_env_keys", []):
+                key = os.environ.get(fallback_key, "")
+                if key:
+                    break
+        if not key:
+            fallback_hint = ""
+            fallback_keys = cfg.get("fallback_env_keys", [])
+            if fallback_keys:
+                fallback_hint = "（也兼容 " + " / ".join(fallback_keys) + "）"
             raise LLMError(
-                f"{cfg['env_key']} 未设置。请获取 key 后:\n  export {cfg['env_key']}=your-key",
+                f"{cfg['env_key']} 未设置{fallback_hint}。请获取 key 后:\n  export {cfg['env_key']}=your-key",
                 kind="auth",
                 retryable=False,
                 provider=provider,

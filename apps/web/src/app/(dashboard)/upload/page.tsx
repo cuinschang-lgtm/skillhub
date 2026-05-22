@@ -252,6 +252,7 @@ export default function UploadPage() {
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
             线上演示站点建议上传不超过 {MAX_UPLOAD_MB}MB 的 PDF。更大的文件建议改为直传后端或对象存储，不要先经过前端代理。
+            若上传的是扫描版 PDF，仍需要服务端已配置可用的 OCR token；否则只会尝试提取原始文字层。
           </div>
 
           <Button

@@ -53,7 +53,7 @@ from llm import LLMClient
 from bench import build_report, gen_questions, run_benchmark, mcnemar_exact_p, newcombe_diff_ci
 from ocr_mineru import ocr_pdf, split_pdf_for_mineru
 from pipeline import _allocate
-from pdf_utils import write_text_layer_markdown
+from pdf_utils import summarize_markdown_text, write_text_layer_markdown
 
 
 def publish_progress(task_id: str, stage: str, status: str, message: str = "", progress: int = 0, extra: dict = None):
@@ -93,14 +93,33 @@ def _load_task(task_uuid: uuid.UUID) -> Task:
 
 
 def _set_default_api_keys() -> None:
-    if settings.deepseek_key and not os.environ.get("DEEPSEEK_KEY"):
-        os.environ["DEEPSEEK_KEY"] = settings.deepseek_key
+    deepseek_key = settings.deepseek_key or os.environ.get("DEEPSEEK_API_KEY", "")
+    if deepseek_key and not os.environ.get("DEEPSEEK_KEY"):
+        os.environ["DEEPSEEK_KEY"] = deepseek_key
+    if deepseek_key and not os.environ.get("DEEPSEEK_API_KEY"):
+        os.environ["DEEPSEEK_API_KEY"] = deepseek_key
     if settings.openai_api_key and not os.environ.get("OPENAI_API_KEY"):
         os.environ["OPENAI_API_KEY"] = settings.openai_api_key
     if settings.anthropic_api_key and not os.environ.get("ANTHROPIC_API_KEY"):
         os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
     if settings.mineru_token and not os.environ.get("MINERU_TOKEN"):
         os.environ["MINERU_TOKEN"] = settings.mineru_token
+
+
+def _fallback_text_extraction(pdf_path: Path, work_dir: Path) -> tuple[Path, str]:
+    fallback_path = work_dir / "ocr-output-fallback.md"
+    write_text_layer_markdown(pdf_path, fallback_path)
+    markdown = fallback_path.read_text(encoding="utf-8")
+    summary = summarize_markdown_text(markdown)
+    if not summary["usable"]:
+        raise RuntimeError(
+            "扫描版 PDF 需要 OCR，但当前未配置可用的 MINERU_TOKEN，且 PDF 文字层提取结果不足以继续。"
+            " 请配置 MINERU_TOKEN，或换用带文字层的 PDF。"
+        )
+    return fallback_path, (
+        "未检测到可用的 MINERU_TOKEN，已降级为直接提取 PDF 文字层。"
+        f" 有效文本约 {summary['meaningful_chars']} 字符 / {summary['meaningful_lines']} 行。"
+    )
 
 
 def _save_skill_and_benchmark(task: Task, work_dir: Path) -> str:
@@ -229,18 +248,30 @@ def run_pipeline_task(job_id: str, task_id: str):
         if probe["needs_ocr"]:
             if task.ocr_provider != "mineru":
                 raise RuntimeError(f"Unsupported OCR provider: {task.ocr_provider}")
-            parts = split_pdf_for_mineru(Path(task.pdf_path), parts_dir=work_dir / "ocr_parts")
-            if len(parts) > 1:
-                md_paths = [ocr_pdf(part, work_dir / "ocr") for part in parts]
-                markdown_path = work_dir / "ocr" / "full-merged.md"
-                with markdown_path.open("w", encoding="utf-8") as merged:
-                    for md_path in md_paths:
-                        merged.write(md_path.read_text(encoding="utf-8"))
+            mineru_token = os.environ.get("MINERU_TOKEN", "").strip()
+            if mineru_token:
+                parts = split_pdf_for_mineru(Path(task.pdf_path), parts_dir=work_dir / "ocr_parts")
+                if len(parts) > 1:
+                    md_paths = [ocr_pdf(part, work_dir / "ocr", token=mineru_token) for part in parts]
+                    markdown_path = work_dir / "ocr" / "full-merged.md"
+                    with markdown_path.open("w", encoding="utf-8") as merged:
+                        for md_path in md_paths:
+                            merged.write(md_path.read_text(encoding="utf-8"))
+                else:
+                    markdown_path = ocr_pdf(Path(task.pdf_path), work_dir / "ocr", token=mineru_token)
+                cached_md = work_dir / "ocr-output.md"
+                cached_md.write_text(markdown_path.read_text(encoding="utf-8"), encoding="utf-8")
+                markdown_path = cached_md
             else:
-                markdown_path = ocr_pdf(Path(task.pdf_path), work_dir / "ocr")
-            cached_md = work_dir / "ocr-output.md"
-            cached_md.write_text(markdown_path.read_text(encoding="utf-8"), encoding="utf-8")
-            markdown_path = cached_md
+                markdown_path, fallback_message = _fallback_text_extraction(Path(task.pdf_path), work_dir)
+                publish_progress(
+                    task_id,
+                    "ocr",
+                    "running",
+                    fallback_message,
+                    progress=24,
+                    extra={"degraded": True, "mode": "text-layer-fallback"},
+                )
         else:
             markdown_path = work_dir / "ocr-output.md"
             write_text_layer_markdown(Path(task.pdf_path), markdown_path)

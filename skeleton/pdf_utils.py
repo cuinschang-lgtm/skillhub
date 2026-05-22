@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from pypdf import PdfReader, PdfWriter
+
+
+EMPTY_PAGE_PLACEHOLDER_RE = re.compile(r"^\[第\d+页内容为空\]$")
 
 
 def _load_reader(pdf_path: Path) -> PdfReader:
@@ -72,6 +76,20 @@ def write_text_layer_markdown(pdf_path: Path, output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(text, encoding="utf-8")
     return output_path
+
+
+def summarize_markdown_text(markdown: str) -> dict[str, int | bool]:
+    meaningful_lines = [
+        line.strip()
+        for line in markdown.splitlines()
+        if line.strip() and not EMPTY_PAGE_PLACEHOLDER_RE.fullmatch(line.strip())
+    ]
+    meaningful_text = "\n".join(meaningful_lines)
+    return {
+        "meaningful_chars": len(meaningful_text),
+        "meaningful_lines": len(meaningful_lines),
+        "usable": len(meaningful_text) >= 120 or len(meaningful_lines) >= 6,
+    }
 
 
 def split_pdf_pages(

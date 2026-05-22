@@ -5,6 +5,7 @@ import os
 import sys
 import traceback
 import uuid
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -120,6 +121,31 @@ def _fallback_text_extraction(pdf_path: Path, work_dir: Path) -> tuple[Path, str
         "未检测到可用的 MINERU_TOKEN，已降级为直接提取 PDF 文字层。"
         f" 有效文本约 {summary['meaningful_chars']} 字符 / {summary['meaningful_lines']} 行。"
     )
+
+
+def _build_rescue_profile(probe: dict, markdown: str) -> dict:
+    summary = summarize_markdown_text(markdown)
+    empty_page_hits = len(re.findall(r"\[第\d+页内容为空\]", markdown))
+    page_breaks = markdown.count("===PAGE_BREAK===")
+    enabled = bool(
+        probe.get("needs_ocr")
+        and (
+            int(probe.get("pages", 0)) >= 300
+            or float(probe.get("size_mb", 0.0)) >= 40
+            or len(markdown) >= 180000
+            or empty_page_hits >= 20
+        )
+    )
+    return {
+        "enabled": enabled,
+        "pages": int(probe.get("pages", 0)),
+        "size_mb": float(probe.get("size_mb", 0.0)),
+        "markdown_chars": len(markdown),
+        "meaningful_chars": int(summary.get("meaningful_chars", 0)),
+        "meaningful_lines": int(summary.get("meaningful_lines", 0)),
+        "empty_page_hits": empty_page_hits,
+        "page_breaks": page_breaks,
+    }
 
 
 def _save_skill_and_benchmark(task: Task, work_dir: Path) -> str:
@@ -277,12 +303,27 @@ def run_pipeline_task(job_id: str, task_id: str):
             write_text_layer_markdown(Path(task.pdf_path), markdown_path)
 
         markdown = markdown_path.read_text(encoding="utf-8")
+        rescue_profile = _build_rescue_profile(probe, markdown)
         _update_task(task_uuid, current_stage="ocr", progress_pct=32)
         publish_progress(task_id, "ocr", "done", f"文本已生成，共 {len(markdown)} 字符", progress=32)
 
         publish_progress(task_id, "split", "running", "正在切分章节...", progress=40)
         client = LLMClient.from_env(task.llm_provider)
-        chapters = split_chapters(markdown, llm_client=client)
+        if rescue_profile["enabled"]:
+            publish_progress(
+                task_id,
+                "split",
+                "running",
+                "检测到大扫描版教材，已切换到保守切章模式",
+                progress=42,
+                extra={"degraded": True, "mode": "scan-rescue", "rescue_profile": rescue_profile},
+            )
+        chapters = split_chapters(
+            markdown,
+            llm_client=client,
+            rescue_mode=bool(rescue_profile["enabled"]),
+            min_success_chapters=2 if rescue_profile["enabled"] else 3,
+        )
         chapters_json = [
             {
                 "idx": chapter.idx,
@@ -294,8 +335,9 @@ def run_pipeline_task(job_id: str, task_id: str):
             for chapter in chapters
         ]
         (work_dir / "chapters.json").write_text(json.dumps(chapters_json, ensure_ascii=False, indent=2), encoding="utf-8")
-        if len(chapters_json) < 3:
-            raise RuntimeError("章节切分结果少于 3 章，无法继续")
+        min_required_chapters = 2 if rescue_profile["enabled"] else 3
+        if len(chapters_json) < min_required_chapters:
+            raise RuntimeError(f"章节切分结果少于 {min_required_chapters} 章，无法继续")
         _update_task(task_uuid, current_stage="split", progress_pct=48)
         publish_progress(task_id, "split", "done", f"识别 {len(chapters_json)} 章", progress=48)
 
@@ -305,7 +347,7 @@ def run_pipeline_task(job_id: str, task_id: str):
             work_dir / "extracted",
             client,
             prompts_dir,
-            allow_partial=settings.allow_partial_skill,
+            allow_partial=settings.allow_partial_skill or bool(rescue_profile["enabled"]),
         )
         _update_task(task_uuid, current_stage="extract", progress_pct=70)
         publish_progress(task_id, "extract", "done", "结构化抽取完成", progress=70)
@@ -317,13 +359,16 @@ def run_pipeline_task(job_id: str, task_id: str):
             task.skill_slug or task.skill_name,
             task.book_title,
             domain=task.domain or "",
-            allow_partial=settings.allow_partial_skill,
+            allow_partial=settings.allow_partial_skill or bool(rescue_profile["enabled"]),
         )
         _update_task(task_uuid, current_stage="assemble", progress_pct=84)
         publish_progress(task_id, "assemble", "done", "Skill 组装完成", progress=84)
 
         publish_progress(task_id, "bench", "running", "正在执行 benchmark...", progress=90)
-        allocation_total = 12 if len(chapters_json) <= 6 else 18
+        if rescue_profile["enabled"]:
+            allocation_total = 8 if len(chapters_json) <= 6 else 10
+        else:
+            allocation_total = 12 if len(chapters_json) <= 6 else 18
         allocation = _allocate(chapters_json, total=allocation_total)
         questions = gen_questions(chapters_json, allocation, client, prompts_dir, domain=task.domain or "通用")
         if not questions:

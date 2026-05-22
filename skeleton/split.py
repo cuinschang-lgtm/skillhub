@@ -16,6 +16,7 @@ Codex 反馈过：单一锚点过拟合 V0 教材，必须 strategy chain。
 import re
 import json
 import sys
+import math
 from pathlib import Path
 from dataclasses import dataclass, asdict
 
@@ -318,15 +319,19 @@ def split_by_page_break(markdown: str) -> list[Chapter]:
 
     chapters: list[Chapter] = []
     for idx, page in enumerate(pages, start=1):
+        if re.fullmatch(r"\[第\d+页内容为空\]", page.strip()):
+            continue
         title = ""
         for line in page.splitlines():
             clean = line.strip()
             if not clean:
                 continue
+            if re.fullmatch(r"\[第\d+页内容为空\]", clean):
+                continue
             title = clean
             break
         if not title:
-            title = f"第{idx}章"
+            continue
         chapters.append(
             Chapter(
                 idx=idx,
@@ -334,6 +339,84 @@ def split_by_page_break(markdown: str) -> list[Chapter]:
                 content=page,
                 source_strategy="page-break",
                 num=str(idx),
+            )
+        )
+    return chapters if len(chapters) >= 3 else []
+
+
+def _guess_chunk_title(content: str, idx: int) -> str:
+    for line in content.splitlines():
+        clean = re.sub(r"\s+", " ", line).strip(" #*-").strip()
+        if len(clean) < 4:
+            continue
+        if clean == "===PAGE_BREAK===":
+            continue
+        if clean.startswith("[第") and clean.endswith("页内容为空]"):
+            continue
+        return clean[:48]
+    return f"第{idx}部分"
+
+
+def split_by_rescue_chunks(markdown: str) -> list[Chapter]:
+    """扫描版教材专项兜底：粗粒度分块，目标是先产出可继续处理的章节块。"""
+    pages = [page.strip() for page in markdown.split("===PAGE_BREAK===") if page.strip()]
+    chapters: list[Chapter] = []
+
+    if len(pages) >= 12:
+        pages_per_chunk = max(12, math.ceil(len(pages) / 12))
+        for chunk_idx, start in enumerate(range(0, len(pages), pages_per_chunk), start=1):
+            end = min(start + pages_per_chunk, len(pages))
+            content = "\n\n===PAGE_BREAK===\n\n".join(pages[start:end]).strip()
+            if len(content) < 800:
+                continue
+            chapters.append(
+                Chapter(
+                    idx=len(chapters) + 1,
+                    title=_guess_chunk_title(content, chunk_idx),
+                    content=content,
+                    source_strategy="scan-rescue-page-chunk",
+                    num=str(chunk_idx),
+                )
+            )
+        if len(chapters) >= 3:
+            return chapters
+
+    lines = [line.rstrip() for line in markdown.splitlines()]
+    target_chunks = 10
+    target_size = max(12000, len(markdown) // target_chunks)
+    current: list[str] = []
+    current_size = 0
+
+    for line in lines:
+        current.append(line)
+        current_size += len(line) + 1
+        if current_size < target_size:
+            continue
+        content = "\n".join(current).strip()
+        if len(content) >= 800:
+            chunk_idx = len(chapters) + 1
+            chapters.append(
+                Chapter(
+                    idx=chunk_idx,
+                    title=_guess_chunk_title(content, chunk_idx),
+                    content=content,
+                    source_strategy="scan-rescue-char-chunk",
+                    num=str(chunk_idx),
+                )
+            )
+        current = []
+        current_size = 0
+
+    tail = "\n".join(current).strip()
+    if len(tail) >= 800:
+        chunk_idx = len(chapters) + 1
+        chapters.append(
+            Chapter(
+                idx=chunk_idx,
+                title=_guess_chunk_title(tail, chunk_idx),
+                content=tail,
+                source_strategy="scan-rescue-char-chunk",
+                num=str(chunk_idx),
             )
         )
     return chapters
@@ -439,8 +522,8 @@ def split_by_llm(markdown: str, llm_client) -> list[Chapter]:
 
 # ---------- Strategy chain ----------
 
-def split_chapters(markdown: str, llm_client=None) -> list[Chapter]:
-    """按 strategy chain 切章。第一个产出 ≥3 章的策略胜出"""
+def split_chapters(markdown: str, llm_client=None, *, rescue_mode: bool = False, min_success_chapters: int = 3) -> list[Chapter]:
+    """按 strategy chain 切章。第一个产出足够章节数的策略胜出。"""
     strategies = [
         ("toc-first", split_by_toc),
         ("h1-size", split_by_h1_size),
@@ -453,14 +536,22 @@ def split_chapters(markdown: str, llm_client=None) -> list[Chapter]:
         except Exception as e:
             print(f"[split] {name} failed: {e}", flush=True)
             continue
-        if len(result) >= 3:
+        if len(result) >= min_success_chapters:
             print(f"[split] strategy={name} 识别 {len(result)} 章", flush=True)
             return result
         print(f"[split] strategy={name} 只识别 {len(result)} 章，尝试下一个", flush=True)
 
     # 全部失败 → LLM 兜底（如果有 client）
     if llm_client is not None:
-        return split_by_llm(markdown, llm_client)
+        result = split_by_llm(markdown, llm_client)
+        if len(result) >= min_success_chapters:
+            return result
+
+    if rescue_mode:
+        result = split_by_rescue_chunks(markdown)
+        if len(result) >= min_success_chapters:
+            print(f"[split] strategy=scan-rescue 识别 {len(result)} 块", flush=True)
+            return result
 
     raise RuntimeError(
         "全部 split 策略失败。建议:\n"

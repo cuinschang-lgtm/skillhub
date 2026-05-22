@@ -92,10 +92,10 @@ def _chapter_is_usable(content: str) -> bool:
     cleaned = content.strip()
     if len(cleaned) < 180:
         return False
-    if any(marker in cleaned for marker in LOW_SIGNAL_MARKERS):
-        return False
     if extract_keywords(cleaned):
         return True
+    if any(marker in cleaned for marker in LOW_SIGNAL_MARKERS):
+        return False
     return cleaned.count("## ") >= 3 and "### 例" in cleaned
 
 

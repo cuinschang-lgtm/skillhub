@@ -1,0 +1,5 @@
+name: accounting-demo-skill
+description: |
+  中级财务会计演示版预制 Skill。适合用于结果页直达和问答交互演示，重点覆盖会计基础、存货、长期资产、负债权益和财务报表分析。
+policy:
+  allow_implicit_invocation: true

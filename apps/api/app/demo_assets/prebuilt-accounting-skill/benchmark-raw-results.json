@@ -1,0 +1,30 @@
+[
+  {
+    "id": "demo-01",
+    "chapter": "01-财务会计基础",
+    "difficulty": "medium",
+    "with_skill": {"correct": true, "selected_chapters": ["01-财务会计基础.md"]},
+    "without_skill": {"correct": false}
+  },
+  {
+    "id": "demo-02",
+    "chapter": "03-存货与收入确认",
+    "difficulty": "medium",
+    "with_skill": {"correct": true, "selected_chapters": ["03-存货与收入确认.md"]},
+    "without_skill": {"correct": true}
+  },
+  {
+    "id": "demo-03",
+    "chapter": "04-长期资产",
+    "difficulty": "hard",
+    "with_skill": {"correct": true, "selected_chapters": ["04-长期资产.md"]},
+    "without_skill": {"correct": false}
+  },
+  {
+    "id": "demo-04",
+    "chapter": "06-财务报表与分析",
+    "difficulty": "easy",
+    "with_skill": {"correct": true, "selected_chapters": ["06-财务报表与分析.md"]},
+    "without_skill": {"correct": true}
+  }
+]

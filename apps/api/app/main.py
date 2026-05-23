@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.config import settings
 from app.db import init_db
-from app.maintenance import cleanup_stale_skills, ensure_storage_ready
+from app.maintenance import cleanup_stale_skills, ensure_prebuilt_demo_skill, ensure_storage_ready
 from app.ws.progress import router as ws_router
 
 app = FastAPI(
@@ -36,6 +36,7 @@ async def startup() -> None:
     ensure_storage_ready(settings.storage_dir)
     await init_db()
     await cleanup_stale_skills()
+    await ensure_prebuilt_demo_skill()
 
 
 @app.get("/health")

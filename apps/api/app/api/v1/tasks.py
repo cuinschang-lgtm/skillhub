@@ -102,8 +102,18 @@ async def create_task(
     await db.commit()
     await db.refresh(task)
 
-    celery_result = run_pipeline_task.delay(str(task.id))
-    task.celery_task_id = celery_result.id
+    try:
+        celery_result = run_pipeline_task.delay(str(task.id))
+        task.celery_task_id = celery_result.id
+    except Exception as exc:
+        task.status = "failed"
+        task.current_stage = "failed"
+        task.error_message = f"Task dispatch failed: {type(exc).__name__}: {exc}"
+        task.completed_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(task)
+        return _to_response(task)
+
     await db.commit()
     await db.refresh(task)
 

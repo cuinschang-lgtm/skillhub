@@ -9,12 +9,11 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-
-from app.config import normalize_database_url, settings
+from app.config import settings
 from app.models import BenchmarkResult, Skill, Task
 from app.tasks.celery_app import celery_app
+from app.tasks.task_state import load_task as _load_task
+from app.tasks.task_state import update_task as _update_task
 from app.ws.bus import progress_bus
 
 def _resolve_support_dir(name: str) -> Path:
@@ -66,31 +65,6 @@ def publish_progress(task_id: str, stage: str, status: str, message: str = "", p
         "extra": extra or {},
     }
     progress_bus.publish(task_id, json.dumps(payload, ensure_ascii=False))
-
-
-SYNC_DATABASE_URL = normalize_database_url(settings.database_url, async_mode=False)
-sync_engine = create_engine(SYNC_DATABASE_URL, future=True)
-
-
-def _update_task(task_uuid: uuid.UUID, **fields) -> Task:
-    with Session(sync_engine) as db:
-        task = db.get(Task, task_uuid)
-        if not task:
-            raise RuntimeError(f"Task not found: {task_uuid}")
-        for key, value in fields.items():
-            setattr(task, key, value)
-        db.commit()
-        db.refresh(task)
-        return task
-
-
-def _load_task(task_uuid: uuid.UUID) -> Task:
-    with Session(sync_engine) as db:
-        task = db.get(Task, task_uuid)
-        if not task:
-            raise RuntimeError(f"Task not found: {task_uuid}")
-        db.expunge(task)
-        return task
 
 
 def _set_default_api_keys() -> None:

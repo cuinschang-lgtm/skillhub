@@ -10,6 +10,8 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,10 +20,11 @@ from typing import Any, Callable
 
 _processes: dict[str, subprocess.Popen[str]] = {}
 RUNNER_MODULE = "app.tasks.demo_task_runner"
+RUNNER_STARTUP_TIMEOUT_SECONDS = 1.0
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    return Path(__file__).resolve().parents[4]
 
 
 @dataclass
@@ -43,6 +46,8 @@ class DemoTask:
 
     def delay(self, *args: Any, **kwargs: Any) -> DemoAsyncResult:
         task_id = str(uuid.uuid4())
+        startup_marker = Path(tempfile.gettempdir()) / f"skillhub-runner-{task_id}.started"
+        startup_marker.unlink(missing_ok=True)
         runner_args = [
             sys.executable,
             "-m",
@@ -61,12 +66,26 @@ class DemoTask:
             str(_project_root() / "skeleton"),
         ]
         env["PYTHONPATH"] = os.pathsep.join([*support_paths, python_path] if python_path else support_paths)
+        env["SKILLHUB_RUNNER_STARTUP_MARKER"] = str(startup_marker)
         process = subprocess.Popen(
             runner_args,
             cwd=str(_project_root()),
             env=env,
             start_new_session=True,
         )
+        deadline = time.monotonic() + RUNNER_STARTUP_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            if startup_marker.exists():
+                startup_marker.unlink(missing_ok=True)
+                _processes[task_id] = process
+                return DemoAsyncResult(id=task_id)
+            exit_code = process.poll()
+            if exit_code is not None:
+                startup_marker.unlink(missing_ok=True)
+                raise RuntimeError(f"Demo worker exited during startup (exit code {exit_code})")
+            time.sleep(0.05)
+
+        startup_marker.unlink(missing_ok=True)
         _processes[task_id] = process
         return DemoAsyncResult(id=task_id)
 

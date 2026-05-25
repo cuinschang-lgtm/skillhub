@@ -1,12 +1,36 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
 
-def normalize_database_url(url: str, *, async_mode: bool) -> str:
-    if url.startswith("sqlite:///") or url.startswith("sqlite+aiosqlite:///"):
-        return url if async_mode else url.replace("+aiosqlite", "")
+APP_ROOT = Path(__file__).resolve().parents[1]
 
-    normalized = url.replace("postgres://", "postgresql://", 1)
+
+def _resolve_app_path(path_value: str) -> Path:
+    path = Path(path_value).expanduser()
+    if not path.is_absolute():
+        path = APP_ROOT / path
+    return path.resolve()
+
+
+def _resolve_sqlite_database_url(url: str) -> str:
+    for prefix in ("sqlite+aiosqlite:///", "sqlite:///"):
+        if not url.startswith(prefix):
+            continue
+        raw_path = url[len(prefix) :]
+        if raw_path in {"", ":memory:"} or raw_path.startswith("/"):
+            return url
+        return f"{prefix}{_resolve_app_path(raw_path)}"
+    return url
+
+
+def normalize_database_url(url: str, *, async_mode: bool) -> str:
+    resolved_url = _resolve_sqlite_database_url(url)
+    if resolved_url.startswith("sqlite:///") or resolved_url.startswith("sqlite+aiosqlite:///"):
+        return resolved_url if async_mode else resolved_url.replace("+aiosqlite", "")
+
+    normalized = resolved_url.replace("postgres://", "postgresql://", 1)
     if async_mode:
         if normalized.startswith("postgresql+asyncpg://"):
             return normalized
@@ -39,5 +63,6 @@ class Settings(BaseSettings):
     allow_partial_skill: bool = False
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
-
 settings = Settings()
+settings.storage_dir = str(_resolve_app_path(settings.storage_dir))
+settings.database_url = _resolve_sqlite_database_url(settings.database_url)

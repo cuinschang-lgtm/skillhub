@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-import { getDemoUserFromCookies } from "@/lib/demo-user";
+import { getCookieName } from "@/app/api/auth/_session";
 
 
 function getConfiguredApiBase() {
@@ -24,8 +25,9 @@ const IS_LOCAL_API =
 
 
 export async function proxyToApi(path: string, init: RequestInit = {}) {
-  const user = await getDemoUserFromCookies();
-  if (!user) {
+  const jar = await cookies();
+  const token = jar.get(getCookieName())?.value || "";
+  if (!token) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
@@ -40,9 +42,7 @@ export async function proxyToApi(path: string, init: RequestInit = {}) {
   }
 
   const headers = new Headers(init.headers);
-  headers.set("x-demo-email", user.email);
-  headers.set("x-demo-role", user.role);
-  headers.set("x-demo-name", user.displayName);
+  headers.set("Authorization", `Bearer ${token}`);
 
   let response: Response;
   try {
@@ -75,13 +75,33 @@ export async function proxyToApi(path: string, init: RequestInit = {}) {
   const payload = isJson ? await response.json() : await response.text();
 
   if (isJson) {
-    return NextResponse.json(payload, { status: response.status });
+    const nextResponse = NextResponse.json(payload, { status: response.status });
+    if (response.status === 401) {
+      nextResponse.cookies.set(getCookieName(), "", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 0,
+      });
+    }
+    return nextResponse;
   }
 
-  return new NextResponse(payload, {
+  const nextResponse = new NextResponse(payload, {
     status: response.status,
     headers: { "content-type": contentType || "text/plain; charset=utf-8" },
   });
+  if (response.status === 401) {
+    nextResponse.cookies.set(getCookieName(), "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+  }
+  return nextResponse;
 }
 
 

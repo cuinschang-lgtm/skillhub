@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const COOKIE_NAME = "skillhub_session";
+import { getCookieName } from "@/app/api/auth/_session";
 
 export function middleware(req: NextRequest) {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const token = req.cookies.get(getCookieName())?.value;
   if (token) return NextResponse.next();
   const url = req.nextUrl.clone();
   url.pathname = "/login";
@@ -22,4 +22,3 @@ export const config = {
     "/benchmark/:path*",
   ],
 };
-

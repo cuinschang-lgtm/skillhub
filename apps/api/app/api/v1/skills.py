@@ -97,7 +97,6 @@ async def get_skill(
     bench = bench_result.scalar_one_or_none()
 
     data = _to_response(skill).model_dump()
-    data["skill_dir"] = skill.skill_dir
     if bench:
         data["benchmark"] = {
             "total_questions": bench.total_questions,

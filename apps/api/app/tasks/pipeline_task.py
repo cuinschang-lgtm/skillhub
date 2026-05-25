@@ -3,7 +3,6 @@
 import json
 import os
 import sys
-import traceback
 import uuid
 import re
 from datetime import datetime
@@ -56,13 +55,36 @@ from pipeline import _allocate
 from pdf_utils import summarize_markdown_text, write_text_layer_markdown
 
 
+SENSITIVE_PROGRESS_KEYS = {
+    "path",
+    "traceback",
+    "skill_dir",
+    "raw_results_path",
+    "pdf_path",
+    "work_dir",
+}
+
+
+def _sanitize_progress_value(value):
+    if isinstance(value, dict):
+        return {
+            key: sanitized
+            for key, child in value.items()
+            if key not in SENSITIVE_PROGRESS_KEYS
+            for sanitized in [_sanitize_progress_value(child)]
+        }
+    if isinstance(value, list):
+        return [_sanitize_progress_value(item) for item in value]
+    return value
+
+
 def publish_progress(task_id: str, stage: str, status: str, message: str = "", progress: int = 0, extra: dict = None):
     payload = {
         "stage": stage,
         "status": status,
         "message": message,
         "progress": progress,
-        "extra": extra or {},
+        "extra": _sanitize_progress_value(extra or {}),
     }
     progress_bus.publish(task_id, json.dumps(payload, ensure_ascii=False))
 
@@ -565,6 +587,5 @@ def run_pipeline_task(job_id: str, task_id: str):
             "failed",
             error_message,
             progress=100,
-            extra={"traceback": traceback.format_exc(limit=5)},
         )
         raise

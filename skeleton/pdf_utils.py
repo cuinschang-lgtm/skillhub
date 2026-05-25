@@ -47,7 +47,6 @@ def probe_pdf_file(pdf_path: Path, *, max_pages_to_scan: int = 5) -> dict:
     language = "ch" if has_chinese else "en"
 
     return {
-        "path": str(pdf_path.absolute()),
         "pages": len(reader.pages),
         "size_mb": round(file_size / 1024 / 1024, 2),
         "has_text_layer": has_text_layer,

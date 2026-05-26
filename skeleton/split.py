@@ -424,6 +424,47 @@ def split_by_rescue_chunks(markdown: str) -> list[Chapter]:
 
 # ---------- Strategy 5: LLM 兜底（V1 新实现）----------
 
+def _count_body_hits(markdown: str, needle: str, toc_threshold: int) -> list[int]:
+    """返回 needle 在 markdown 正文区（toc_threshold 之后）所有命中位置列表。"""
+    hits: list[int] = []
+    pos = toc_threshold
+    while True:
+        idx = markdown.find(needle, pos)
+        if idx < 0:
+            break
+        hits.append(idx)
+        pos = idx + 1
+    return hits
+
+
+def _resolve_anchor(markdown: str, first_line: str, toc_threshold: int) -> int | None:
+    """在正文区找 first_line 的唯一位置，失败时返回 None。"""
+    hits = _count_body_hits(markdown, first_line, toc_threshold)
+
+    if not hits:
+        return None
+    if len(hits) == 1:
+        return hits[0]
+
+    # 多次命中时用更长上下文做消歧；只有恰好 1 个唯一片段才接受。
+    anchor_len = len(first_line)
+    for extra in (80, 150):
+        snippets: dict[str, list[int]] = {}
+        for hit in hits:
+            snippet = markdown[hit : hit + anchor_len + extra]
+            snippets.setdefault(snippet, []).append(hit)
+
+        unique_positions = [
+            positions[0]
+            for positions in snippets.values()
+            if len(positions) == 1
+        ]
+        if len(unique_positions) == 1:
+            return unique_positions[0]
+
+    return None
+
+
 LLM_SPLIT_PROMPT = """你是一个章节切分助手。下面是一本教材的 markdown（来自 OCR），可能 TOC 不规范、章节号丢失、layout 漂移。
 
 你的任务：识别每一章的**第一行原文 markdown 字符串**（必须是原文里真实存在的字符串），用于后续 grep 定位章节起点。
@@ -483,7 +524,8 @@ def split_by_llm(markdown: str, llm_client) -> list[Chapter]:
     if not isinstance(proposals, list) or not proposals:
         return []
 
-    # grep 每个 first_line 在原文位置
+    # grep 每个 first_line 在原文正文区（跳过前 5% TOC）的唯一位置
+    toc_threshold = int(len(markdown) * 0.05)
     positions = []
     for p in proposals:
         if not isinstance(p, dict):
@@ -493,14 +535,37 @@ def split_by_llm(markdown: str, llm_client) -> list[Chapter]:
         first_line = str(p.get("first_line", "")).strip()
         if not first_line or not num:
             continue
-        # 精确匹配（不用正则，避免 first_line 含特殊字符）
-        idx = markdown.find(first_line)
-        # 避免落到 TOC 区（前 5%）
-        toc_threshold = int(len(markdown) * 0.05)
-        while idx >= 0 and idx < toc_threshold:
-            idx = markdown.find(first_line, idx + 1)
-        if idx >= 0:
-            positions.append((idx, num, title))
+
+        all_hits = _count_body_hits(markdown, first_line, toc_threshold)
+        hit_count = len(all_hits)
+        if hit_count == 0:
+            print(
+                f"[split:llm] 第{num}章 first_line 未命中（幻觉？），跳过"
+                f" | first_line={first_line[:50]!r}",
+                flush=True,
+            )
+            continue
+
+        if hit_count == 1:
+            positions.append((all_hits[0], num, title))
+            continue
+
+        resolved = _resolve_anchor(markdown, first_line, toc_threshold)
+        if resolved is None:
+            print(
+                f"[split:llm] 第{num}章 first_line 命中 {hit_count} 次且消歧失败，跳过"
+                f" | first_line={first_line[:50]!r}"
+                f" | positions={all_hits}",
+                flush=True,
+            )
+            continue
+
+        print(
+            f"[split:llm] 第{num}章 first_line 命中 {hit_count} 次，扩展锚消歧成功"
+            f" → pos={resolved}",
+            flush=True,
+        )
+        positions.append((resolved, num, title))
 
     if not positions:
         return []

@@ -18,6 +18,26 @@
 
 ---
 
+## SkillHub Website
+
+这个仓库现在同时承载两条内容：
+
+- `textbook2skill`：把教材编译成 Claude Code / Codex 可用 skill 的工具链
+- `SkillHub`：基于 Next.js + FastAPI 的网站与 API
+
+如果你现在的目标是**启动或部署 SkillHub 网站**，不要从下方 CLI/skill 工具链说明开始读，请直接看：
+
+- [docs/deploy-skillhub.md](docs/deploy-skillhub.md)
+- [apps/web/README.md](apps/web/README.md)
+
+当前部署相关文件也集中在：
+
+- [.env.example](.env.example)
+- [render.yaml](render.yaml)
+- [docker-compose.yml](docker-compose.yml)
+
+下面的 README 主体仍然以 `textbook2skill` 工具链为主。
+
 ## TL;DR
 
 你手里有一本 PDF 教材，想让 Claude Code / Codex 以后回答相关问题时“记得这本书”。最直接的办法是每次把 PDF 或长文本塞进上下文，但这很慢、很贵，也不好复用。

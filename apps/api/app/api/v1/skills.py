@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from pathlib import Path
 from pydantic import BaseModel
@@ -7,11 +8,14 @@ from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
+from app.config import settings
 from app.deps import get_current_user
 from app.db import get_db
+from app.maintenance import PREBUILT_DEMO_ASSET_DIR
 from app.models import BenchmarkResult, Skill, User
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class SkillResponse(BaseModel):
@@ -46,6 +50,49 @@ def _skill_dir_exists(skill: Skill) -> bool:
 def _ensure_skill_available(skill: Skill) -> None:
     if not _skill_dir_exists(skill):
         raise HTTPException(status_code=410, detail="Skill 文件已失效，请重新编译该教材")
+
+
+def _allowed_raw_results_roots() -> tuple[Path, ...]:
+    return (
+        Path(settings.storage_dir).resolve(),
+        PREBUILT_DEMO_ASSET_DIR.resolve(),
+    )
+
+
+def _path_within_roots(path: Path, roots: tuple[Path, ...]) -> bool:
+    for root in roots:
+        try:
+            path.relative_to(root)
+            return True
+        except ValueError:
+            continue
+    return False
+
+
+def _load_safe_raw_results(raw_results_path: Optional[str]) -> list:
+    if not raw_results_path:
+        return []
+
+    try:
+        resolved_path = Path(raw_results_path).resolve()
+    except (OSError, RuntimeError, ValueError):
+        logger.warning("Ignore invalid benchmark raw_results_path")
+        return []
+
+    if not _path_within_roots(resolved_path, _allowed_raw_results_roots()):
+        logger.warning("Ignore benchmark raw_results_path outside allowlist")
+        return []
+
+    if not resolved_path.exists() or not resolved_path.is_file():
+        return []
+
+    try:
+        payload = json.loads(resolved_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        logger.warning("Ignore unreadable benchmark raw results file")
+        return []
+
+    return payload if isinstance(payload, list) else []
 
 
 @router.get("")
@@ -152,9 +199,7 @@ async def get_benchmark(
     if not bench:
         raise HTTPException(status_code=404, detail="Benchmark not found")
 
-    raw_results = []
-    if bench.raw_results_path and Path(bench.raw_results_path).exists():
-        raw_results = json.loads(Path(bench.raw_results_path).read_text(encoding="utf-8"))
+    raw_results = _load_safe_raw_results(bench.raw_results_path)
 
     return {
         "skill_id": str(skill.id),

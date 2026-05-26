@@ -1,33 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2, Download, MessageCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-type SkillDetail = {
-  id: string;
-  name: string;
-  book_title: string;
-  chapter_count?: number | null;
-  benchmark_verdict?: string | null;
-  benchmark_delta?: number | null;
-};
-
-type BenchmarkPayload = {
-  verdict: string;
-  delta_pct: number;
-  p_value: number;
-  ci_lower: number;
-  ci_upper: number;
-  routing_accuracy: number;
-  total_questions: number;
-  with_correct: number;
-  without_correct: number;
-  per_chapter: { chapter: string; with_rate: number; without_rate: number }[];
-  per_difficulty: { level: string; with: number; without: number }[];
-};
+import { useBenchmark } from "@/hooks/use-benchmark";
 
 function ComparisonBar({ label, withVal, withoutVal }: { label: string; withVal: number; withoutVal: number }) {
   return (
@@ -55,41 +33,7 @@ function ComparisonBar({ label, withVal, withoutVal }: { label: string; withVal:
 export default function BenchmarkPage() {
   const { skillId } = useParams<{ skillId: string }>();
   const router = useRouter();
-  const [skill, setSkill] = useState<SkillDetail | null>(null);
-  const [benchmark, setBenchmark] = useState<BenchmarkPayload | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const [skillRes, benchmarkRes] = await Promise.all([
-          fetch(`/api/skills/${skillId}`, { cache: "no-store" }),
-          fetch(`/api/skills/${skillId}/benchmark`, { cache: "no-store" }),
-        ]);
-
-        const skillData = await skillRes.json().catch(() => null);
-        const benchmarkData = await benchmarkRes.json().catch(() => null);
-        if (!skillRes.ok || !benchmarkRes.ok) {
-          if (!cancelled) setError(skillData?.detail || benchmarkData?.detail || "获取结果失败");
-          return;
-        }
-        if (!cancelled) {
-          setSkill(skillData);
-          setBenchmark(benchmarkData);
-          setError("");
-        }
-      } catch {
-        if (!cancelled) setError("网络错误，请稍后重试");
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [skillId]);
+  const { skill, benchmark, error } = useBenchmark(skillId);
 
   const score = useMemo(() => {
     if (!benchmark) return 0;

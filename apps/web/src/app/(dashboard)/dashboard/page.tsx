@@ -1,59 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Upload, Library, Clock3, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-type TaskItem = {
-  id: string;
-  status: string;
-  book_title: string;
-  skill_name: string;
-  current_stage: string | null;
-  progress_pct: number;
-};
-
-type SkillItem = {
-  id: string;
-  book_title: string;
-  domain?: string | null;
-  benchmark_delta?: number | null;
-};
+import { useDashboardData } from "@/hooks/use-dashboard-data";
 
 export default function DashboardPage() {
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [skills, setSkills] = useState<SkillItem[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const [tasksRes, skillsRes] = await Promise.all([
-          fetch("/api/tasks", { cache: "no-store" }),
-          fetch("/api/skills?page_size=4", { cache: "no-store" }),
-        ]);
-        const tasksData = await tasksRes.json().catch(() => ({ items: [] }));
-        const skillsData = await skillsRes.json().catch(() => ({ items: [] }));
-        if (!cancelled) {
-          setTasks(tasksData.items || []);
-          setSkills(skillsData.items || []);
-        }
-      } catch {
-        if (!cancelled) {
-          setTasks([]);
-          setSkills([]);
-        }
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { tasks, skills } = useDashboardData();
 
   const runningTask = tasks.find((task) => task.status === "running" || task.status === "pending");
 

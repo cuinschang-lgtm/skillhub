@@ -1,24 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useSkills } from "@/hooks/use-skills";
+import type { SkillSummary } from "@/types/skill";
 
-type SkillItem = {
-  id: string;
-  name: string;
-  book_title: string;
-  domain?: string | null;
-  visibility: string;
-  chapter_count?: number | null;
-  benchmark_verdict?: string | null;
-  benchmark_delta?: number | null;
-};
-
-function SkillCard({ skill }: { skill: SkillItem }) {
+function SkillCard({ skill }: { skill: SkillSummary }) {
   const router = useRouter();
   const color = skill.benchmark_delta && skill.benchmark_delta > 0 ? "from-indigo-400 to-purple-500" : "from-slate-400 to-slate-500";
   const authorInitial = skill.book_title.slice(0, 1) || "S";
@@ -64,40 +55,7 @@ function SkillCard({ skill }: { skill: SkillItem }) {
 
 export default function KnowledgePage() {
   const [search, setSearch] = useState("");
-  const [skills, setSkills] = useState<SkillItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const qs = new URLSearchParams();
-        if (search.trim()) qs.set("search", search.trim());
-        const res = await fetch(`/api/skills?${qs.toString()}`, { cache: "no-store" });
-        const data = (await res.json().catch(() => null)) as { items?: SkillItem[]; detail?: string } | null;
-        if (!res.ok) {
-          if (!cancelled) setError(data?.detail || "加载失败");
-          return;
-        }
-        if (!cancelled) {
-          setSkills(data?.items || []);
-          setError("");
-        }
-      } catch {
-        if (!cancelled) setError("网络错误，请稍后重试");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [search]);
+  const { skills, loading, error } = useSkills(search);
 
   const emptyText = useMemo(() => {
     if (loading) return "正在加载知识库...";

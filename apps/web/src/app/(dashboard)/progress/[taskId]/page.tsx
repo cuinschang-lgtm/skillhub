@@ -1,28 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2, Circle, Loader2, Clock, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
-
-type TaskDetail = {
-  id: string;
-  status: TaskStatus;
-  book_title: string;
-  skill_name: string;
-  skill_slug?: string | null;
-  current_stage: string | null;
-  progress_pct: number;
-  error_message?: string | null;
-  skill_id?: string | null;
-};
-
-type TaskErrorPayload = {
-  detail?: string;
-};
+import { useTask } from "@/hooks/use-task";
 
 const STAGES = [
   { id: "probe", name: "解析文档结构" },
@@ -49,40 +32,13 @@ function StageIcon({ state }: { state: "done" | "running" | "pending" | "failed"
 export default function ProgressPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const router = useRouter();
-  const [task, setTask] = useState<TaskDetail | null>(null);
-  const [error, setError] = useState("");
+  const { task, error } = useTask(taskId, { pollInterval: 3000 });
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadTask() {
-      try {
-        const res = await fetch(`/api/tasks/${taskId}`, { cache: "no-store" });
-        const payload = (await res.json().catch(() => null)) as TaskDetail | TaskErrorPayload | null;
-        if (!res.ok || !payload || !("id" in payload)) {
-          const message = payload && "detail" in payload ? payload.detail : undefined;
-          if (!cancelled) setError(message || "获取任务失败");
-          return;
-        }
-        if (!cancelled) {
-          setTask(payload);
-          setError("");
-          if (payload.status === "completed" && payload.skill_id) {
-            router.replace(`/benchmark/${payload.skill_id}`);
-          }
-        }
-      } catch {
-        if (!cancelled) setError("网络错误，请稍后重试");
-      }
+    if (task?.status === "completed" && task.skill_id) {
+      router.replace(`/benchmark/${task.skill_id}`);
     }
-
-    loadTask();
-    const timer = window.setInterval(loadTask, 3000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [router, taskId]);
+  }, [router, task]);
 
   const stageItems = useMemo(() => {
     const currentIndex = STAGES.findIndex((s) => s.id === task?.current_stage);

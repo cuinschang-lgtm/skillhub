@@ -7,8 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { useProfileSettings } from "@/hooks/use-profile-settings";
 
 export default function SettingsPage() {
+  const {
+    profile,
+    displayName,
+    loading,
+    saving,
+    error,
+    success,
+    setDisplayName,
+    save,
+  } = useProfileSettings();
+
+  const roleLabel = profile?.role === "teacher" ? "教师" : profile?.role === "student" ? "学生" : "未知";
+
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-bold text-foreground mb-6">设置</h1>
@@ -27,19 +41,42 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold">个人信息</h2>
             </CardHeader>
             <CardContent className="space-y-4">
+              {error ? (
+                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {error}
+                </div>
+              ) : null}
+              {success ? (
+                <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  {success}
+                </div>
+              ) : null}
               <div className="space-y-2">
                 <Label>显示名称</Label>
-                <Input defaultValue="张老师" />
+                <Input
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  disabled={loading || saving}
+                  placeholder={loading ? "加载中..." : "请输入显示名称"}
+                />
               </div>
               <div className="space-y-2">
                 <Label>邮箱</Label>
-                <Input defaultValue="zhang@university.edu.cn" disabled />
+                <Input value={profile?.email || ""} disabled placeholder={loading ? "加载中..." : ""} />
               </div>
               <div className="space-y-2">
                 <Label>角色</Label>
-                <Badge variant="secondary">教师</Badge>
+                <Badge variant="secondary">{loading ? "加载中" : roleLabel}</Badge>
               </div>
-              <Button className="bg-primary hover:bg-primary/90">保存修改</Button>
+              <Button
+                className="bg-primary hover:bg-primary/90"
+                disabled={loading || saving || !profile}
+                onClick={() => {
+                  void save();
+                }}
+              >
+                {saving ? "保存中..." : "保存修改"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -51,6 +88,9 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">配置你自己的 API Key，超出免费额度后使用</p>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2">
+                该 tab 当前仍为演示占位，尚未接入真实保存逻辑。
+              </div>
               <div className="space-y-2">
                 <Label>DeepSeek API Key</Label>
                 <div className="flex gap-2">
@@ -84,6 +124,9 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">创建班级并分享 Skill 给学生</p>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2">
+                该 tab 当前仍为演示占位，尚未接入真实数据。
+              </div>
               <div className="p-4 rounded-xl border border-border bg-muted/30">
                 <div className="flex items-center justify-between">
                   <div>
@@ -104,6 +147,9 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold">额度与计费</h2>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2">
+                该 tab 当前仍为演示占位，尚未接入真实数据。
+              </div>
               <div className="p-4 rounded-xl border border-border">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-foreground font-medium">本月教材编译</span>

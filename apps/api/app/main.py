@@ -1,9 +1,14 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api.v1.router import api_router
 from app.config import settings
-from app.db import init_db
+from app.db import engine, init_db
 from app.maintenance import cleanup_stale_skills, ensure_prebuilt_demo_skill, ensure_storage_ready
 from app.ws.progress import router as ws_router
 
@@ -41,4 +46,31 @@ async def startup() -> None:
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    checks: dict[str, str] = {}
+    status_code = 200
+    overall_status = "ok"
+
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception:
+        checks["database"] = "error"
+        overall_status = "error"
+        status_code = 503
+
+    storage_dir = Path(settings.storage_dir)
+    if storage_dir.is_dir() and os.access(storage_dir, os.R_OK | os.W_OK):
+        checks["storage"] = "ok"
+    else:
+        checks["storage"] = "error"
+        overall_status = "error"
+        status_code = 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": overall_status,
+            "checks": checks,
+        },
+    )

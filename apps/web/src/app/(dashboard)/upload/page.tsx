@@ -15,6 +15,10 @@ function formatFileSize(bytes: number) {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+function isPdfFile(file: File) {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
 export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -29,13 +33,21 @@ export default function UploadPage() {
 
   const suggestedSkillName = skillName || bookTitle;
 
+  const handleSelectedFile = (selectedFile: File | null | undefined) => {
+    if (!selectedFile) {
+      return;
+    }
+    if (!isPdfFile(selectedFile)) {
+      setError("仅支持上传 PDF 文件");
+      return;
+    }
+    setError("");
+    setFile(selectedFile);
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const dropped = e.dataTransfer.files[0];
-    if (dropped?.type === "application/pdf") {
-      setError("");
-      setFile(dropped);
-    }
+    handleSelectedFile(e.dataTransfer.files[0]);
   };
 
   const handleSubmit = async () => {
@@ -119,10 +131,7 @@ export default function UploadPage() {
                   accept=".pdf"
                   className="hidden"
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    setError("");
-                    setFile(f);
+                    handleSelectedFile(e.target.files?.[0]);
                   }}
                 />
               </label>
@@ -253,7 +262,7 @@ export default function UploadPage() {
             disabled={!file || !bookTitle || !domain || submitting}
             onClick={handleSubmit}
           >
-            {submitting ? "创建任务中..." : "开始编译 →"}
+            {submitting ? "正在上传并创建任务..." : "开始编译 →"}
           </Button>
         </div>
       </div>

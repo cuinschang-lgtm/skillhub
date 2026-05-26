@@ -9,7 +9,7 @@ from starlette.responses import Response
 
 from app.db import SessionLocal
 from app.models import Task
-from app.security import decode_access_token
+from app.security import decode_access_token, decode_progress_ws_token
 from app.ws.bus import progress_bus
 
 router = APIRouter()
@@ -21,21 +21,28 @@ async def _deny(websocket: WebSocket) -> bool:
 
 
 async def _authorize_progress_subscription(websocket: WebSocket, task_id: str) -> bool:
+    try:
+        task_uuid = uuid.UUID(task_id)
+    except ValueError:
+        return await _deny(websocket)
+
     token = (websocket.query_params.get("token") or "").strip()
     if not token:
         return await _deny(websocket)
 
     try:
-        payload = decode_access_token(token)
-        task_uuid = uuid.UUID(task_id)
-    except (HTTPException, ValueError):
-        return await _deny(websocket)
+        payload_user_id = decode_progress_ws_token(token).user_id
+    except HTTPException:
+        try:
+            payload_user_id = decode_access_token(token).user_id
+        except HTTPException:
+            return await _deny(websocket)
 
     async with SessionLocal() as session:
         result = await session.execute(select(Task.user_id).where(Task.id == task_uuid))
         owner_id = result.scalar_one_or_none()
 
-    if owner_id != payload.user_id:
+    if owner_id != payload_user_id:
         return await _deny(websocket)
     return True
 

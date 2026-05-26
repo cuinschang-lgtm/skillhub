@@ -19,6 +19,12 @@ class TokenPayload:
     email: str
 
 
+@dataclass
+class ProgressTokenPayload:
+    user_id: UUID
+    task_id: UUID
+
+
 def create_access_token(*, user_id: UUID, email: str, expires_minutes: int) -> tuple[str, int]:
     expires_in_seconds = max(expires_minutes, 1) * 60
     expire_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
@@ -32,6 +38,19 @@ def create_access_token(*, user_id: UUID, email: str, expires_minutes: int) -> t
     return token, expires_in_seconds
 
 
+def create_progress_ws_token(*, user_id: UUID, task_id: UUID, expires_seconds: int = 60) -> tuple[str, int]:
+    ttl_seconds = max(expires_seconds, 1)
+    expire_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+    payload = {
+        "sub": str(user_id),
+        "task_id": str(task_id),
+        "type": "progress_ws",
+        "exp": expire_at,
+    }
+    token = jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
+    return token, ttl_seconds
+
+
 def decode_access_token(token: str) -> TokenPayload:
     unauthorized = HTTPException(status_code=401, detail="Invalid or expired access token")
     try:
@@ -43,6 +62,21 @@ def decode_access_token(token: str) -> TokenPayload:
         if not user_id or not email:
             raise unauthorized
         return TokenPayload(user_id=UUID(user_id), email=str(email))
+    except (JWTError, ValueError, TypeError) as exc:
+        raise unauthorized from exc
+
+
+def decode_progress_ws_token(token: str) -> ProgressTokenPayload:
+    unauthorized = HTTPException(status_code=401, detail="Invalid or expired progress token")
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+        if payload.get("type") != "progress_ws":
+            raise unauthorized
+        user_id = payload.get("sub")
+        task_id = payload.get("task_id")
+        if not user_id or not task_id:
+            raise unauthorized
+        return ProgressTokenPayload(user_id=UUID(user_id), task_id=UUID(task_id))
     except (JWTError, ValueError, TypeError) as exc:
         raise unauthorized from exc
 

@@ -14,6 +14,7 @@ from app.config import settings
 from app.deps import get_current_user
 from app.db import get_db
 from app.models import Skill, Task, User
+from app.security import create_progress_ws_token
 from app.tasks.pipeline_task import run_pipeline_task
 from app.utils import slugify_skill_name
 
@@ -33,6 +34,11 @@ class TaskResponse(BaseModel):
 class TaskListResponse(BaseModel):
     items: list[TaskResponse]
     total: int
+
+
+class TaskWsTicketResponse(BaseModel):
+    token: str
+    expires_in: int
 
 
 def _to_response(task: Task) -> TaskResponse:
@@ -161,6 +167,20 @@ async def get_task(
         "completed_at": task.completed_at.isoformat() if task.completed_at else None,
         "skill_id": skill_id,
     }
+
+
+@router.get("/{task_id}/ws-ticket", response_model=TaskWsTicketResponse)
+async def get_task_ws_ticket(
+    task_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    task = await db.get(Task, uuid.UUID(task_id))
+    if not task or task.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    token, expires_in = create_progress_ws_token(user_id=user.id, task_id=task.id)
+    return TaskWsTicketResponse(token=token, expires_in=expires_in)
 
 
 @router.delete("/{task_id}")

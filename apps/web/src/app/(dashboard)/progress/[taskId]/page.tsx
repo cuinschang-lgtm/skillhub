@@ -32,7 +32,7 @@ function StageIcon({ state }: { state: "done" | "running" | "pending" | "failed"
 export default function ProgressPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const router = useRouter();
-  const { task, error } = useTask(taskId, { pollInterval: 3000 });
+  const { task, error, transport, statusMessage } = useTask(taskId, { pollInterval: 3000 });
 
   useEffect(() => {
     if (task?.status === "completed" && task.skill_id) {
@@ -61,6 +61,14 @@ export default function ProgressPage() {
   }, [task]);
 
   const currentStage = stageItems.find((stage) => stage.state === "running");
+  const transportLabel =
+    transport === "realtime"
+      ? "实时连接中"
+      : transport === "polling"
+        ? "实时连接不可用，已切换为轮询"
+        : transport === "connecting"
+          ? "正在建立实时连接..."
+          : "";
 
   return (
     <div>
@@ -139,6 +147,9 @@ export default function ProgressPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     当前步骤：{currentStage?.name || task?.current_stage || "排队中"}
                   </p>
+                  {transportLabel ? (
+                    <p className="text-[11px] text-muted-foreground mt-1">{transportLabel}</p>
+                  ) : null}
                 </div>
                 <div className="relative w-14 h-14">
                   <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
@@ -164,7 +175,7 @@ export default function ProgressPage() {
                   ? task.error_message || "任务失败"
                   : task?.status === "completed"
                     ? "已完成，正在跳转结果页..."
-                    : "后台正在运行教材编译流程。"}
+                    : statusMessage || "后台正在运行教材编译流程。"}
               </p>
             </CardContent>
           </Card>

@@ -33,7 +33,7 @@ function ComparisonBar({ label, withVal, withoutVal }: { label: string; withVal:
 export default function BenchmarkPage() {
   const { skillId } = useParams<{ skillId: string }>();
   const router = useRouter();
-  const { skill, benchmark, error } = useBenchmark(skillId);
+  const { skill, benchmark, error, loading } = useBenchmark(skillId);
 
   const score = useMemo(() => {
     if (!benchmark) return 0;
@@ -75,7 +75,28 @@ export default function BenchmarkPage() {
         </div>
       ) : null}
 
-      {!benchmark || !skill ? null : (
+      {loading ? (
+        <>
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="h-5 w-28 rounded bg-muted animate-pulse" />
+              <div className="h-8 w-64 rounded bg-muted animate-pulse mt-4" />
+              <div className="h-4 w-48 rounded bg-muted animate-pulse mt-3" />
+            </CardContent>
+          </Card>
+          <div className="grid md:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Card key={index}>
+                <CardContent className="p-5 space-y-3">
+                  <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                  <div className="h-20 rounded bg-muted animate-pulse" />
+                  <div className="h-20 rounded bg-muted animate-pulse" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      ) : !benchmark || !skill ? null : (
         <>
           <Card className={`mb-6 border-green-200 ${verdictBg}`}>
             <CardContent className="p-6 flex items-center justify-between">

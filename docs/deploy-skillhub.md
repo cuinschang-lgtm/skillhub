@@ -197,19 +197,31 @@ docker compose up -d postgres redis
 返回：
 
 ```json
-{"status":"ok"}
+{
+  "status": "ok",
+  "checks": {
+    "database": "ok",
+    "storage": "ok"
+  }
+}
 ```
 
 这表示：
 
 - API 进程存活
+- 数据库可访问
+- 存储目录可访问
 
 这**不表示**：
 
-- 数据库一定可连接
 - Redis 一定可连接
 - OCR/LLM key 一定完整
 - Worker 一定可用
+
+当数据库或存储目录异常时：
+
+- `/health` 会返回 `503`
+- 返回体中的 `checks` 会标出失败项
 
 ## Compose 与部署边界
 

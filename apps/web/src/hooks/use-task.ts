@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { ApiClientError } from "@/lib/api-client/http";
 import { getTask, getTaskProgressTicket } from "@/lib/api-client/tasks";
 import type { TaskDetail, TaskProgressEvent, TaskStatus } from "@/types/task";
 
@@ -18,6 +19,13 @@ type UseTaskOptions = {
 };
 
 const FINAL_STATUSES = new Set<TaskStatus>(["completed", "failed", "cancelled"]);
+
+function isRetryableTaskError(error: unknown) {
+  if (error instanceof ApiClientError) {
+    return error.status >= 500;
+  }
+  return true;
+}
 
 function toTaskStatus(status: string, fallback: TaskStatus): TaskStatus {
   if (status === "completed" || status === "failed" || status === "cancelled" || status === "running" || status === "pending") {
@@ -100,7 +108,7 @@ export function useTask(taskId: string, options?: UseTaskOptions) {
             error: error instanceof Error ? error.message : "任务不存在或已失效",
           }));
         }
-        return null;
+        return { task: null, retryable: isRetryableTaskError(error) };
       }
     };
 
@@ -175,20 +183,32 @@ export function useTask(taskId: string, options?: UseTaskOptions) {
             startPolling();
           }
         };
-      } catch {
-        startPolling();
+      } catch (error) {
+        return isRetryableTaskError(error);
       }
+      return true;
     };
 
     void (async () => {
-      const task = await loadTask();
-      if (!task || finished || cancelled) {
-        if (!task) {
+      const result = await loadTask();
+      if (!result || cancelled) {
+        return;
+      }
+
+      if (!result.task || finished) {
+        if (!result.task && result.retryable) {
           startPolling();
         }
         return;
       }
-      await connectRealtime();
+
+      const realtimeEligible = await connectRealtime();
+      if (!realtimeEligible) {
+        setState((current) => ({
+          ...current,
+          transport: "idle",
+        }));
+      }
     })();
 
     return () => {

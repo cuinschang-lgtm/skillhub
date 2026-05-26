@@ -14,6 +14,31 @@ type ApiWsTicketResponse = {
   message?: string;
 };
 
+function isPrivateOrContainerHost(hostname: string) {
+  const lowerHostname = hostname.toLowerCase();
+
+  if (lowerHostname === "localhost" || lowerHostname.endsWith(".local")) {
+    return true;
+  }
+
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(lowerHostname)) {
+    const octets = lowerHostname.split(".").map(Number);
+    if (octets[0] === 10 || octets[0] === 127) {
+      return true;
+    }
+    if (octets[0] === 192 && octets[1] === 168) {
+      return true;
+    }
+    if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) {
+      return true;
+    }
+    return false;
+  }
+
+  // A bare internal service name like `api` is only resolvable inside the container network.
+  return !lowerHostname.includes(".");
+}
+
 function buildWebSocketUrl(taskId: string, token: string) {
   const upstream = new URL(API_BASE);
   upstream.protocol = upstream.protocol === "https:" ? "wss:" : "ws:";
@@ -38,6 +63,17 @@ export async function GET(
       {
         message:
           "服务器未配置后端 API 地址。请在部署平台设置 SKILLHUB_API_BASE_URL 指向公网后端服务。",
+      },
+      { status: 503 },
+    );
+  }
+
+  const upstream = new URL(API_BASE);
+  if (isPrivateOrContainerHost(upstream.hostname)) {
+    return NextResponse.json(
+      {
+        message:
+          "当前后端地址仅适合服务端代理，浏览器无法直连实时进度通道。请配置 SKILLHUB_API_BASE_URL 为浏览器可访问的公网地址，或继续使用轮询进度。",
       },
       { status: 503 },
     );

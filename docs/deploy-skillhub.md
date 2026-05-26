@@ -157,12 +157,18 @@ docker compose up -d postgres redis
 - `SKILLHUB_API_BASE_URL`
   - Web 访问后端的公网/显式地址
 - `SKILLHUB_API_HOSTPORT`
-  - 仅适合容器/内网场景，例如 `api:8000`
+  - 仅适合服务端 HTTP 代理走容器/内网场景，例如 `api:8000`
 
 这两个变量二选一即可：
 
 - 外网或 Render/Vercel 类部署：优先 `SKILLHUB_API_BASE_URL`
-- 容器内联通：可用 `SKILLHUB_API_HOSTPORT`
+- 容器内联通的服务端 HTTP 代理：可用 `SKILLHUB_API_HOSTPORT`
+
+注意：
+
+- 浏览器侧实时进度 WebSocket 需要一个浏览器可直接访问的地址
+- 如果只配置 `SKILLHUB_API_HOSTPORT=api:8000` 这类容器内地址，普通 HTTP 代理仍可工作，但实时进度会自动退回轮询
+- 若需要浏览器实时进度，请显式配置 `SKILLHUB_API_BASE_URL`
 
 ### LLM / OCR
 

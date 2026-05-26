@@ -6,19 +6,25 @@ import { getBenchmark, getSkillDetail } from "@/lib/api-client/skills";
 import type { BenchmarkResult, SkillDetail } from "@/types/skill";
 
 type BenchmarkState = {
+  skillId: string;
   skill: SkillDetail | null;
   benchmark: BenchmarkResult | null;
   loading: boolean;
   error: string;
 };
 
-export function useBenchmark(skillId: string) {
-  const [state, setState] = useState<BenchmarkState>({
+function createInitialState(skillId: string): BenchmarkState {
+  return {
+    skillId,
     skill: null,
     benchmark: null,
     loading: true,
     error: "",
-  });
+  };
+}
+
+export function useBenchmark(skillId: string) {
+  const [state, setState] = useState<BenchmarkState>(() => createInitialState(skillId));
 
   useEffect(() => {
     let cancelled = false;
@@ -30,11 +36,12 @@ export function useBenchmark(skillId: string) {
           getBenchmark(skillId),
         ]);
         if (!cancelled) {
-          setState({ skill, benchmark, loading: false, error: "" });
+          setState({ skillId, skill, benchmark, loading: false, error: "" });
         }
       } catch (error) {
         if (!cancelled) {
           setState({
+            skillId,
             skill: null,
             benchmark: null,
             loading: false,
@@ -48,6 +55,10 @@ export function useBenchmark(skillId: string) {
       cancelled = true;
     };
   }, [skillId]);
+
+  if (state.skillId !== skillId) {
+    return createInitialState(skillId);
+  }
 
   return state;
 }

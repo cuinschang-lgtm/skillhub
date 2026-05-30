@@ -1,4 +1,7 @@
+import importlib
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -64,6 +67,29 @@ async def health():
         checks["storage"] = "ok"
     else:
         checks["storage"] = "error"
+        overall_status = "error"
+        status_code = 503
+
+    try:
+        if not os.access(sys.executable, os.X_OK):
+            checks["task_runner"] = "error"
+            overall_status = "error"
+            status_code = 503
+        else:
+            completed = subprocess.run(
+                [sys.executable, "-c", "import importlib; importlib.import_module('app.tasks.demo_task_runner')"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            if completed.returncode == 0:
+                checks["task_runner"] = "ok"
+            else:
+                checks["task_runner"] = "error"
+                overall_status = "error"
+                status_code = 503
+    except Exception:
+        checks["task_runner"] = "error"
         overall_status = "error"
         status_code = 503
 

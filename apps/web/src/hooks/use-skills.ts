@@ -50,27 +50,33 @@ export function useSkills(search = "") {
 
   useEffect(() => {
     let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled) return;
 
-    dispatch({ type: "start" });
+      dispatch({ type: "start" });
 
-    (async () => {
-      try {
-        const skills = await listSkills({ search });
-        if (!cancelled) {
-          dispatch({ type: "success", skills });
+      (async () => {
+        try {
+          const skills = await listSkills({ search });
+          if (!cancelled) {
+            dispatch({ type: "success", skills });
+          }
+        } catch (error) {
+          if (!cancelled) {
+            dispatch({
+              type: "error",
+              message: error instanceof Error ? error.message : "加载失败",
+            });
+          }
         }
-      } catch (error) {
-        if (!cancelled) {
-          dispatch({
-            type: "error",
-            message: error instanceof Error ? error.message : "加载失败",
-          });
-        }
-      }
-    })();
+      })();
+    }, 300);
 
     return () => {
       cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
     };
   }, [search]);
 

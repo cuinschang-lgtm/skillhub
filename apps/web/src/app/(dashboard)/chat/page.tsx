@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Send, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { Send, BookOpen, Sparkles, Loader2, MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -166,6 +166,18 @@ function ChatPageInner() {
     );
   }
 
+  function handleNewConversation() {
+    setMessages([
+      {
+        id: "welcome",
+        role: "assistant",
+        content: "请选择要激活的教材 Skill，然后输入问题开始问答。",
+      },
+    ]);
+    setInput("");
+    setError("");
+  }
+
   return (
     <div className="h-full flex">
       <div className="w-72 border-r border-border bg-white p-4 space-y-5 shrink-0 overflow-y-auto">
@@ -233,6 +245,19 @@ function ChatPageInner() {
       </div>
 
       <div className="flex-1 flex flex-col">
+        <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-border/50">
+          <span className="text-sm font-medium text-foreground">对话</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={handleNewConversation}
+            disabled={sending}
+          >
+            <MessageSquarePlus className="w-4 h-4 mr-1.5" />
+            新对话
+          </Button>
+        </div>
         {error ? (
           <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
             {error}

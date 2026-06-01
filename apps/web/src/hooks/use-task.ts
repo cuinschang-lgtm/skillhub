@@ -86,7 +86,7 @@ export function useTask(taskId: string, options?: UseTaskOptions) {
       }
     };
 
-    const loadTask = async () => {
+    const loadTask = async (): Promise<{ task: TaskDetail | null; retryable: boolean }> => {
       try {
         const task = await getTask(taskId);
         finished = FINAL_STATUSES.has(task.status);
@@ -99,7 +99,7 @@ export function useTask(taskId: string, options?: UseTaskOptions) {
             transport: finished ? "idle" : current.transport,
           }));
         }
-        return task;
+        return { task, retryable: false };
       } catch (error) {
         if (!cancelled) {
           setState((current) => ({

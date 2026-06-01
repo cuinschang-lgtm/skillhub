@@ -58,7 +58,10 @@ export async function GET(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  if (process.env.NODE_ENV === "production" && IS_LOCAL_API) {
+  const isExplicitlyConfigured = Boolean(
+    process.env.SKILLHUB_API_BASE_URL || process.env.SKILLHUB_API_HOSTPORT,
+  );
+  if (process.env.NODE_ENV === "production" && IS_LOCAL_API && !isExplicitlyConfigured) {
     return NextResponse.json(
       {
         message:

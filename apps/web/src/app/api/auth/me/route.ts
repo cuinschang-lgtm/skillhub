@@ -17,7 +17,10 @@ export async function GET() {
   const token = jar.get(getCookieName())?.value || "";
   if (!token) return NextResponse.json({ user: null }, { status: 401 });
 
-  if (process.env.NODE_ENV === "production" && IS_LOCAL_API) {
+  const isExplicitlyConfigured = Boolean(
+    process.env.SKILLHUB_API_BASE_URL || process.env.SKILLHUB_API_HOSTPORT,
+  );
+  if (process.env.NODE_ENV === "production" && IS_LOCAL_API && !isExplicitlyConfigured) {
     return NextResponse.json(
       {
         message:

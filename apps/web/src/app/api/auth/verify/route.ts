@@ -31,7 +31,10 @@ export async function POST(req: Request) {
   if (!email) return NextResponse.json({ message: "请输入邮箱" }, { status: 400 });
   if (!code) return NextResponse.json({ message: "请输入验证码" }, { status: 400 });
 
-  if (process.env.NODE_ENV === "production" && IS_LOCAL_API) {
+  const isExplicitlyConfigured = Boolean(
+    process.env.SKILLHUB_API_BASE_URL || process.env.SKILLHUB_API_HOSTPORT,
+  );
+  if (process.env.NODE_ENV === "production" && IS_LOCAL_API && !isExplicitlyConfigured) {
     return NextResponse.json(
       {
         message:

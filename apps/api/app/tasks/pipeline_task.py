@@ -12,6 +12,7 @@ from app.config import settings
 from app.models import BenchmarkResult, Skill, Task
 from app.tasks.celery_app import celery_app
 from app.tasks.task_state import load_task as _load_task
+from app.tasks.task_state import run_in_sync_session
 from app.tasks.task_state import update_task as _update_task
 from app.ws.bus import progress_bus
 
@@ -329,7 +330,7 @@ def _save_skill_and_benchmark(
             verdict_line = line.strip()
     verdict = verdict_line or ("已完成 benchmark" if benchmark_results else empty_benchmark_verdict)
 
-    with Session(sync_engine) as db:
+    def operation(db) -> str:
         skill = Skill(
             task_id=task.id,
             user_id=task.user_id,
@@ -363,6 +364,8 @@ def _save_skill_and_benchmark(
         db.commit()
         db.refresh(skill)
         return str(skill.id)
+
+    return run_in_sync_session(operation)
 
 
 @celery_app.task(bind=True)

@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from app.config import settings
+
 
 _processes: dict[str, subprocess.Popen[str]] = {}
 RUNNER_MODULE = "app.tasks.demo_task_runner"
@@ -59,6 +61,7 @@ class DemoTask:
             json.dumps(kwargs),
         ]
         env = os.environ.copy()
+        env["DATABASE_URL"] = settings.database_url
         python_path = env.get("PYTHONPATH", "")
         support_paths = [
             str(_project_root()),

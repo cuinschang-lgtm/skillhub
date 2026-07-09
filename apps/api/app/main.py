@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from app.api.v1.router import api_router
 from app.config import settings
-from app.db import engine, init_db
+from app.db import get_engine, init_db
 from app.maintenance import cleanup_stale_skills, ensure_prebuilt_demo_skill, ensure_storage_ready
 from app.ws.progress import router as ws_router
 
@@ -54,7 +54,7 @@ async def health():
     overall_status = "ok"
 
     try:
-        async with engine.connect() as conn:
+        async with get_engine().connect() as conn:
             await conn.execute(text("SELECT 1"))
         checks["database"] = "ok"
     except Exception:

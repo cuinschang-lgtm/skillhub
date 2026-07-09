@@ -49,6 +49,11 @@ async def startup() -> None:
 
 @app.get("/health")
 async def health():
+    return {"status": "ok"}
+
+
+@app.get("/health/deep")
+async def deep_health():
     checks: dict[str, str] = {}
     status_code = 200
     overall_status = "ok"

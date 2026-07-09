@@ -1,6 +1,5 @@
 import importlib
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -81,18 +80,8 @@ async def deep_health():
             overall_status = "error"
             status_code = 503
         else:
-            completed = subprocess.run(
-                [sys.executable, "-c", "import importlib; importlib.import_module('app.tasks.demo_task_runner')"],
-                capture_output=True,
-                text=True,
-                timeout=3,
-            )
-            if completed.returncode == 0:
-                checks["task_runner"] = "ok"
-            else:
-                checks["task_runner"] = "error"
-                overall_status = "error"
-                status_code = 503
+            importlib.import_module("app.tasks.demo_task_runner")
+            checks["task_runner"] = "ok"
     except Exception:
         checks["task_runner"] = "error"
         overall_status = "error"

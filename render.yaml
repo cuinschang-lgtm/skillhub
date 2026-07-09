@@ -28,9 +28,7 @@ services:
       - key: PUBLIC_BASE_URL
         value: https://skillhub-api-us5i.onrender.com
       - key: DATABASE_URL
-        fromDatabase:
-          name: skillhub-db
-          property: connectionString
+        value: sqlite+aiosqlite:////app/storage/skillhub.db
       - key: STORAGE_DIR
         value: /app/storage
       - key: DEFAULT_LLM_PROVIDER

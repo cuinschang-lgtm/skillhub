@@ -180,7 +180,7 @@ function ChatPageInner() {
 
   return (
     <div className="h-full flex">
-      <div className="w-72 border-r border-border bg-white p-4 space-y-5 shrink-0 overflow-y-auto">
+      <div className="w-72 border-r border-border bg-card p-4 space-y-5 shrink-0 overflow-y-auto">
         <div>
           <h3 className="text-xs font-semibold text-muted-foreground">已激活 Skill</h3>
           <div className="space-y-2 mt-3">
@@ -227,7 +227,7 @@ function ChatPageInner() {
                   key={skill.id}
                   type="button"
                   onClick={() => toggleSkill(skill.id)}
-                  className="w-full p-3 rounded-xl bg-white border border-border hover:border-primary/30 text-left transition-colors"
+                  className="w-full p-3 rounded-xl bg-card border border-border hover:border-primary/30 text-left transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-muted-foreground" />
@@ -259,7 +259,7 @@ function ChatPageInner() {
           </Button>
         </div>
         {error ? (
-          <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+          <div className="mx-6 mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
         ) : null}
@@ -269,7 +269,7 @@ function ChatPageInner() {
             <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
                 className={`max-w-2xl rounded-2xl px-5 py-3 ${
-                  msg.role === "user" ? "bg-primary text-white" : "bg-white border border-border shadow-sm"
+                  msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border shadow-sm"
                 }`}
               >
                 <p className={`text-sm whitespace-pre-wrap leading-relaxed ${msg.role === "user" ? "text-white" : "text-foreground"}`}>
@@ -299,7 +299,7 @@ function ChatPageInner() {
           ))}
         </div>
 
-        <div className="border-t border-border bg-white p-4">
+        <div className="border-t border-border bg-card p-4">
           <div className="flex items-center gap-3 max-w-3xl mx-auto">
             <input
               type="text"
@@ -331,7 +331,7 @@ function ChatPageInner() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="h-full bg-white" />}>
+    <Suspense fallback={<div className="h-full bg-background" />}>
       <ChatPageInner />
     </Suspense>
   );

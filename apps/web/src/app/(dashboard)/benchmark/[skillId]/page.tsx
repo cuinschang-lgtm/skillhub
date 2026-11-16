@@ -42,22 +42,22 @@ export default function BenchmarkPage() {
     return Math.min(100, Math.round(accuracy * 80 + deltaBoost));
   }, [benchmark]);
 
-  const verdictColor = benchmark?.delta_pct && benchmark.delta_pct > 0 ? "text-green-600" : "text-amber-600";
-  const verdictBg = benchmark?.delta_pct && benchmark.delta_pct > 0 ? "bg-green-50" : "bg-amber-50";
+  const verdictColor = benchmark?.delta_pct && benchmark.delta_pct > 0 ? "text-primary" : "text-primary/80";
+  const verdictBg = "bg-card";
   const statusText = benchmark?.delta_pct && benchmark.delta_pct > 0 ? "编译成功" : "编译完成";
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-8">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center">
+          <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <span className="text-sm text-muted-foreground">上传 & 配置</span>
         </div>
         <div className="w-8 h-px bg-border" />
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center">
+          <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <span className="text-sm text-muted-foreground">编译进度</span>
@@ -70,7 +70,7 @@ export default function BenchmarkPage() {
       </div>
 
       {error ? (
-        <div className="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div className="mb-6 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
           {error}
         </div>
       ) : null}
@@ -98,12 +98,12 @@ export default function BenchmarkPage() {
         </>
       ) : !benchmark || !skill ? null : (
         <>
-          <Card className={`mb-6 border-green-200 ${verdictBg}`}>
+          <Card className={`mb-6 border-primary/30 ${verdictBg}`}>
             <CardContent className="p-6 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <CheckCircle2 className="w-10 h-10 text-green-500" />
+                <CheckCircle2 className="w-10 h-10 text-primary" />
                 <div className="min-w-0">
-                  <div className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${verdictColor} bg-white/80`}>
+                  <div className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${verdictColor} bg-card/80`}>
                     {statusText}
                   </div>
                   <h2 className={`mt-3 text-lg font-bold leading-7 ${verdictColor} break-words`}>
@@ -146,8 +146,12 @@ export default function BenchmarkPage() {
                     return (
                       <div
                         key={row.chapter}
-                        className="aspect-square rounded-md flex items-center justify-center text-[10px] font-bold text-white"
-                        style={{ backgroundColor: `hsl(250, ${40 + intensity}%, ${65 - intensity * 0.2}%)` }}
+                        className="aspect-square rounded-md flex items-center justify-center text-[10px] font-bold"
+                        style={{
+                          backgroundColor: `oklch(${28 + intensity * 0.45}% ${0.02 + intensity * 0.0009} 258)`,
+                          color: intensity > 40 ? "var(--primary)" : "var(--muted-foreground)",
+                          boxShadow: intensity > 60 ? "0 0 0 1px oklch(82% 0.095 68 / 0.35)" : undefined,
+                        }}
                         title={`${row.chapter}: WITH ${row.with_rate}% / WITHOUT ${row.without_rate}%`}
                       >
                         {index + 1}

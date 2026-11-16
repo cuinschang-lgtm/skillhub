@@ -103,7 +103,7 @@ export default function UploadPage() {
       </div>
 
       {error ? (
-        <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div className="mb-4 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
           {error}
         </div>
       ) : null}
@@ -114,7 +114,7 @@ export default function UploadPage() {
           <div
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-border rounded-2xl p-12 text-center hover:border-primary/50 transition-colors cursor-pointer bg-white"
+            className="border-2 border-dashed border-border rounded-2xl p-12 text-center hover:border-primary/50 transition-colors cursor-pointer bg-card"
           >
             <div className="flex flex-col items-center gap-3">
               <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center">
@@ -146,7 +146,7 @@ export default function UploadPage() {
                   <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
                   <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
                 </div>
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-4 h-4 text-primary" />
                 <button onClick={() => setFile(null)} className="p-1 hover:bg-muted rounded">
                   <Trash2 className="w-4 h-4 text-muted-foreground" />
                 </button>
@@ -227,7 +227,7 @@ export default function UploadPage() {
                 id="llmProvider"
                 value={llmProvider}
                 onChange={(e) => setLlmProvider(e.target.value)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm"
               >
                 <option value="deepseek">DeepSeek</option>
                 <option value="openai">OpenAI</option>
@@ -240,18 +240,18 @@ export default function UploadPage() {
                 id="ocrProvider"
                 value={ocrProvider}
                 onChange={(e) => setOcrProvider(e.target.value)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm"
               >
                 <option value="mineru">MinerU</option>
               </select>
             </div>
           </div>
 
-          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
+          <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
             演示环境已接入服务端 LLM key。若 PDF 本身有文字层，会优先直接提取文本；扫描版 PDF 会走 OCR。
           </div>
 
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-xs text-primary">
             当前版本已支持单次上传较大的 PDF，建议控制在 50-100MB 以内。文件越大，上传、OCR 和编译耗时越久。
             若上传的是扫描版 PDF，仍需要服务端已配置可用的 OCR token；否则只会尝试提取原始文字层。
           </div>

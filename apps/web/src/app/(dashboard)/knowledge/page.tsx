@@ -18,14 +18,14 @@ function SkillCard({ skill }: { skill: SkillSummary }) {
     <button
       type="button"
       onClick={() => router.push(`/benchmark/${skill.id}`)}
-      className="group rounded-2xl border border-border bg-white shadow-sm hover:shadow-md transition-colors cursor-pointer overflow-hidden text-left"
+      className="group rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-colors cursor-pointer overflow-hidden text-left"
     >
       <div className={`h-28 ${color} flex items-center justify-center relative`}>
-        <div className="w-16 h-20 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 flex items-center justify-center">
-          <span className="text-white/80 text-xs font-medium text-center px-1">{skill.book_title}</span>
+        <div className="w-16 h-20 bg-secondary rounded-lg border border-border flex items-center justify-center">
+          <span className="text-muted-foreground text-xs font-medium text-center px-1">{skill.book_title}</span>
         </div>
         <div className="absolute bottom-2 right-2">
-          <div className="px-2 py-1 rounded-full bg-white shadow-md flex items-center justify-center">
+          <div className="px-2 py-1 rounded-full bg-card shadow-md flex items-center justify-center">
             <span className="text-[10px] font-bold text-primary">
               {typeof skill.benchmark_score === "number" ? `评分 ${skill.benchmark_score}` : "未测评"}
             </span>
@@ -92,13 +92,13 @@ export default function KnowledgePage() {
       </div>
 
       {error ? (
-        <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div className="mb-4 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
           {error}
         </div>
       ) : null}
 
       {skills.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-white p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
           {emptyText}
         </div>
       ) : (

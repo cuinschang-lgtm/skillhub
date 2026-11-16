@@ -42,12 +42,12 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {error ? (
-                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
                   {error}
                 </div>
               ) : null}
               {success ? (
-                <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                <div className="text-sm text-primary bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">
                   {success}
                 </div>
               ) : null}

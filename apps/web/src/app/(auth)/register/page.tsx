@@ -70,11 +70,11 @@ function RegisterInner() {
     <div className="min-h-screen bg-[var(--background)] flex items-center justify-center p-6">
       <div className="w-full max-w-3xl grid md:grid-cols-2 gap-6">
         {/* Left: register form */}
-        <Card className="shadow-lg border-border">
+        <Card className="shadow-[var(--shadow-panel)] border-border">
           <CardHeader className="text-center pb-2">
             <div className="flex justify-center mb-4">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-md bg-gradient-to-b from-[var(--metal-hi)] to-[var(--metal-lo)] shadow-[var(--edge-light)] flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-primary" />
               </div>
             </div>
             <h1 className="text-2xl font-bold text-foreground">创建账户</h1>
@@ -82,7 +82,7 @@ function RegisterInner() {
           </CardHeader>
           <CardContent className="space-y-4 pt-4">
             {error ? (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
                 {error}
               </div>
             ) : null}

@@ -20,9 +20,9 @@ function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-56 border-r border-border bg-white flex flex-col h-full">
+    <aside className="w-56 border-r border-border bg-card flex flex-col h-full">
       <div className="p-4 flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+        <div className="w-8 h-8 rounded-md bg-gradient-to-b from-[var(--metal-hi)] to-[var(--metal-lo)] shadow-[var(--edge-light)] flex items-center justify-center">
           <BookOpen className="w-4 h-4 text-white" />
         </div>
         <span className="text-lg font-bold text-foreground">SkillHub</span>
@@ -63,7 +63,7 @@ function TopBar() {
   }, [refresh]);
 
   return (
-    <header className="h-14 border-b border-border bg-white flex items-center justify-between px-6">
+    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
       <div />
       <div className="flex items-center gap-4">
         <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">

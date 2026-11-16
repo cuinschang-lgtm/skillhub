@@ -19,11 +19,11 @@ const STAGES = [
 function StageIcon({ state }: { state: "done" | "running" | "pending" | "failed" }) {
   switch (state) {
     case "done":
-      return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+      return <CheckCircle2 className="w-5 h-5 text-primary" />;
     case "running":
       return <Loader2 className="w-5 h-5 text-primary animate-spin" />;
     case "failed":
-      return <AlertCircle className="w-5 h-5 text-red-500" />;
+      return <AlertCircle className="w-5 h-5 text-destructive" />;
     default:
       return <Circle className="w-5 h-5 text-muted-foreground/40" />;
   }
@@ -74,7 +74,7 @@ export default function ProgressPage() {
     <div>
       <div className="flex items-center gap-3 mb-8">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center">
+          <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <span className="text-sm text-muted-foreground">上传 & 配置</span>
@@ -92,7 +92,7 @@ export default function ProgressPage() {
       </div>
 
       {error ? (
-        <div className="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div className="mb-6 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
           {error}
         </div>
       ) : null}
@@ -116,14 +116,14 @@ export default function ProgressPage() {
                         : stage.state === "running"
                           ? "text-primary"
                           : stage.state === "failed"
-                            ? "text-red-600"
+                            ? "text-destructive"
                             : "text-muted-foreground"
                     }`}
                   >
                     {i + 1}. {stage.name}
                   </span>
                   {stage.state === "done" ? (
-                    <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">已完成</span>
+                    <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">已完成</span>
                   ) : null}
                   {stage.state === "running" ? (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">

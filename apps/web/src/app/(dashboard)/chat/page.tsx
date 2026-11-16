@@ -182,7 +182,7 @@ function ChatPageInner() {
     <div className="h-full flex">
       <div className="w-72 border-r border-border bg-white p-4 space-y-5 shrink-0 overflow-y-auto">
         <div>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">已激活 Skill</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground">已激活 Skill</h3>
           <div className="space-y-2 mt-3">
             {activeSkills.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
@@ -211,7 +211,7 @@ function ChatPageInner() {
         </div>
 
         <div>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">可添加 Skill</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground">可添加 Skill</h3>
           <div className="space-y-2 mt-3">
             {loadingSkills ? (
               <div className="rounded-xl border border-dashed border-border px-3 py-4 text-xs text-muted-foreground flex items-center gap-2">

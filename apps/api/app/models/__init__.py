@@ -17,6 +17,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     role = Column(String(20), nullable=False)
     display_name = Column(String(100))
+    password_hash = Column(String(255))  # 演示账号可为空
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login_at = Column(DateTime)
 

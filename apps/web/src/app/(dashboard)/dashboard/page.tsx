@@ -111,7 +111,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-muted-foreground mt-1">{skill.domain || "未分类"}</p>
                   </div>
                   <span className="text-sm font-semibold text-primary">
-                    {skill.benchmark_delta?.toFixed(1) || "0.0"}%
+                    {typeof skill.benchmark_score === "number" ? `评分 ${skill.benchmark_score}` : "未测评"}
                   </span>
                 </Link>
               ))}

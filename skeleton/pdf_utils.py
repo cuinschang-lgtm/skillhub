@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from pathlib import Path
 import re
 
@@ -7,6 +8,12 @@ from pypdf import PdfReader, PdfWriter
 
 
 EMPTY_PAGE_PLACEHOLDER_RE = re.compile(r"^\[第\d+页内容为空\]$")
+
+
+def _normalize(text: str) -> str:
+    """NFKC 归一化：把 CJK 兼容字形（如 ⼀ U+2E00）还原为标准汉字（一 U+4E00），
+    否则章节切分正则（第[一...九十]+章）会匹配失败。"""
+    return unicodedata.normalize("NFKC", text)
 
 
 def _load_reader(pdf_path: Path) -> PdfReader:
@@ -27,7 +34,7 @@ def extract_text_pdf(pdf_path: Path, *, max_pages: int | None = None) -> str:
             texts.append(page.extract_text() or "")
         except Exception:
             texts.append("")
-    return "\n\n".join(texts)
+    return _normalize("\n\n".join(texts))
 
 
 def probe_pdf_file(pdf_path: Path, *, max_pages_to_scan: int = 5) -> dict:
@@ -64,7 +71,7 @@ def write_text_layer_markdown(pdf_path: Path, output_path: Path) -> Path:
     page_texts: list[str] = []
     for idx, page in enumerate(reader.pages, start=1):
         try:
-            text = (page.extract_text() or "").strip()
+            text = _normalize((page.extract_text() or "").strip())
         except Exception:
             text = ""
         if text:

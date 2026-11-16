@@ -126,5 +126,26 @@
   }
   html {
     @apply font-sans;
+    /* Hallmark Floor 4：禁止横向滚动（clip 而非 hidden） */
+    overflow-x: clip;
+  }
+  body {
+    overflow-x: clip;
+  }
+  /* Hallmark Floor 6：所有可交互元素必须有立即可见的 :focus-visible */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  /* Hallmark Floor 7：所有动画尊重 reduced-motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

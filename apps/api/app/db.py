@@ -91,6 +91,12 @@ def _ensure_legacy_schema_compatibility(sync_conn) -> None:
             text("ALTER TABLE tasks ADD COLUMN skill_slug VARCHAR(64) DEFAULT 'textbook-skill'")
         )
 
+    table_names = set(inspector.get_table_names())
+    if "users" in table_names:
+        user_columns = {column["name"] for column in inspector.get_columns("users")}
+        if "password_hash" not in user_columns:
+            sync_conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+
     sync_conn.execute(
         text(
             "UPDATE tasks "

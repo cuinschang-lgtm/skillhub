@@ -369,6 +369,17 @@ def _save_skill_and_benchmark(
 
 
 @celery_app.task(bind=True)
+class TaskCancelled(Exception):
+    """任务被用户取消，用于中断管道执行。"""
+
+
+def _check_cancelled(task_uuid) -> None:
+    """阶段间检查任务是否被用户取消。"""
+    task = _load_task(task_uuid)
+    if task.status == "cancelled":
+        raise TaskCancelled(f"Task {task_uuid} cancelled by user")
+
+
 def run_pipeline_task(job_id: str, task_id: str):
     _ = job_id
     task_uuid = uuid.UUID(task_id)
@@ -380,6 +391,7 @@ def run_pipeline_task(job_id: str, task_id: str):
     _update_task(task_uuid, status="running", current_stage="probe", progress_pct=5, started_at=datetime.utcnow())
 
     try:
+        _check_cancelled(task_uuid)
         publish_progress(task_id, "probe", "running", "正在探测 PDF...", progress=5)
         probe = probe_pdf(Path(task.pdf_path))
         (work_dir / "probe.json").write_text(json.dumps(probe, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -436,6 +448,7 @@ def run_pipeline_task(job_id: str, task_id: str):
         publish_progress(task_id, "ocr", "done", f"文本已生成，共 {len(markdown)} 字符", progress=32)
 
         _update_task(task_uuid, current_stage="split", progress_pct=40)
+        _check_cancelled(task_uuid)
         publish_progress(task_id, "split", "running", "正在切分章节...", progress=40)
         client = LLMClient.from_env(task.llm_provider)
         if rescue_profile["enabled"]:
@@ -472,6 +485,7 @@ def run_pipeline_task(job_id: str, task_id: str):
 
         extract_profile = _build_extract_profile(chapters_json, rescue_profile)
         _update_task(task_uuid, current_stage="extract", progress_pct=56)
+        _check_cancelled(task_uuid)
         publish_progress(task_id, "extract", "running", "正在抽取结构化知识...", progress=56)
         extract_all(
             chapters_json,
@@ -486,6 +500,7 @@ def run_pipeline_task(job_id: str, task_id: str):
         publish_progress(task_id, "extract", "done", "结构化抽取完成", progress=70)
 
         _update_task(task_uuid, current_stage="assemble", progress_pct=78)
+        _check_cancelled(task_uuid)
         publish_progress(task_id, "assemble", "running", "正在组装 Skill...", progress=78)
         assemble(
             work_dir / "extracted",
@@ -532,6 +547,7 @@ def run_pipeline_task(job_id: str, task_id: str):
             return {"status": "completed", "task_id": task_id, "skill_id": skill_id}
 
         _update_task(task_uuid, current_stage="bench", progress_pct=90)
+        _check_cancelled(task_uuid)
         publish_progress(task_id, "bench", "running", "正在执行 benchmark...", progress=90)
         if rescue_profile["enabled"] and (
             int(rescue_profile.get("pages", 0)) >= 500 or float(rescue_profile.get("size_mb", 0.0)) >= 60
@@ -575,6 +591,9 @@ def run_pipeline_task(job_id: str, task_id: str):
         )
         publish_progress(task_id, "done", "completed", "编译完成", progress=100, extra={"skill_id": skill_id})
         return {"status": "completed", "task_id": task_id, "skill_id": skill_id}
+    except TaskCancelled:
+        publish_progress(task_id, "cancelled", "cancelled", "任务已取消", progress=100)
+        return {"status": "cancelled", "task_id": task_id}
     except Exception as exc:
         error_message = f"{type(exc).__name__}: {exc}"
         _update_task(

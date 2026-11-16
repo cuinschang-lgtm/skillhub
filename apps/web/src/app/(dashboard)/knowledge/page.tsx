@@ -11,23 +11,23 @@ import type { SkillSummary } from "@/types/skill";
 
 function SkillCard({ skill }: { skill: SkillSummary }) {
   const router = useRouter();
-  const color = skill.benchmark_delta && skill.benchmark_delta > 0 ? "from-indigo-400 to-purple-500" : "from-slate-400 to-slate-500";
+  const color = skill.benchmark_delta && skill.benchmark_delta > 0 ? "bg-primary" : "bg-muted-foreground/40";
   const authorInitial = skill.book_title.slice(0, 1) || "S";
 
   return (
     <button
       type="button"
       onClick={() => router.push(`/benchmark/${skill.id}`)}
-      className="group rounded-2xl border border-border bg-white shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden text-left"
+      className="group rounded-2xl border border-border bg-white shadow-sm hover:shadow-md transition-colors cursor-pointer overflow-hidden text-left"
     >
-      <div className={`h-28 bg-gradient-to-br ${color} flex items-center justify-center relative`}>
+      <div className={`h-28 ${color} flex items-center justify-center relative`}>
         <div className="w-16 h-20 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 flex items-center justify-center">
           <span className="text-white/80 text-xs font-medium text-center px-1">{skill.book_title}</span>
         </div>
         <div className="absolute bottom-2 right-2">
           <div className="px-2 py-1 rounded-full bg-white shadow-md flex items-center justify-center">
             <span className="text-[10px] font-bold text-primary">
-              {skill.benchmark_delta?.toFixed(1) || "0.0"}%
+              {typeof skill.benchmark_score === "number" ? `评分 ${skill.benchmark_score}` : "未测评"}
             </span>
           </div>
         </div>

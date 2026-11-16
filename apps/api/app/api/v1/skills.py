@@ -27,9 +27,19 @@ class SkillResponse(BaseModel):
     chapter_count: Optional[int]
     benchmark_verdict: Optional[str]
     benchmark_delta: Optional[float]
+    benchmark_score: Optional[int] = None
 
 
-def _to_response(skill: Skill) -> SkillResponse:
+def _composite_score(with_correct: int, total: int, delta_pct: float) -> int:
+    """综合评分：准确率*80 + 提升加成（与 benchmark 页口径一致）。"""
+    if total <= 0:
+        return 0
+    accuracy = with_correct / total
+    delta_boost = max(0.0, delta_pct) / 2
+    return min(100, round(accuracy * 80 + delta_boost))
+
+
+def _to_response(skill: Skill, score: Optional[int] = None) -> SkillResponse:
     return SkillResponse(
         id=str(skill.id),
         name=skill.name,
@@ -39,7 +49,21 @@ def _to_response(skill: Skill) -> SkillResponse:
         chapter_count=skill.chapter_count,
         benchmark_verdict=skill.benchmark_verdict,
         benchmark_delta=skill.benchmark_delta,
+        benchmark_score=score,
     )
+
+
+async def _skill_scores(db: AsyncSession, skills: list[Skill]) -> dict:
+    """批量取 benchmark 结果计算综合评分。"""
+    if not skills:
+        return {}
+    rows = await db.execute(
+        select(BenchmarkResult).where(BenchmarkResult.skill_id.in_([s.id for s in skills]))
+    )
+    return {
+        bench.skill_id: _composite_score(bench.with_correct or 0, bench.total_questions or 0, bench.delta_pct or 0.0)
+        for bench in rows.scalars()
+    }
 
 
 def _skill_dir_exists(skill: Skill) -> bool:
@@ -120,9 +144,10 @@ async def list_skills(
     start = max(0, (page - 1) * page_size)
     end = start + page_size
     items = visible_items[start:end]
+    scores = await _skill_scores(db, items)
 
     return {
-        "items": [_to_response(skill).model_dump() for skill in items],
+        "items": [_to_response(skill, scores.get(skill.id)).model_dump() for skill in items],
         "total": total,
         "page": page,
         "page_size": page_size,

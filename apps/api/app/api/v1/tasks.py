@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -19,6 +19,9 @@ from app.tasks.pipeline_task import run_pipeline_task
 from app.utils import slugify_skill_name
 
 router = APIRouter()
+
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100MB
+PDF_MAGIC = b"%PDF-"
 
 
 class TaskResponse(BaseModel):
@@ -75,12 +78,24 @@ async def create_task(
     input_dir.mkdir(parents=True, exist_ok=True)
     pdf_path = input_dir / "input.pdf"
     try:
+        size = 0
+        header = b""
         with pdf_path.open("wb") as output:
             while True:
                 chunk = await pdf.read(1024 * 1024)
                 if not chunk:
                     break
+                size += len(chunk)
+                if size > MAX_UPLOAD_BYTES:
+                    output.close()
+                    pdf_path.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail="PDF 文件过大（上限 100MB）")
+                if not header:
+                    header = chunk[:8]
                 output.write(chunk)
+        if not header.startswith(PDF_MAGIC):
+            pdf_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail="文件内容不是有效的 PDF")
     finally:
         await pdf.close()
 
@@ -128,16 +143,22 @@ async def create_task(
 
 @router.get("", response_model=TaskListResponse)
 async def list_tasks(
+    page: int = 1,
+    page_size: int = 50,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    base = select(Task).where(Task.user_id == user.id)
+    total_stmt = select(func.count()).select_from(base.subquery())
+    total = int((await db.execute(total_stmt)).scalar_one())
+
     result = await db.execute(
-        select(Task)
-        .where(Task.user_id == user.id)
-        .order_by(desc(Task.created_at))
+        base.order_by(desc(Task.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
     tasks = list(result.scalars().all())
-    return TaskListResponse(items=[_to_response(task) for task in tasks], total=len(tasks))
+    return TaskListResponse(items=[_to_response(task) for task in tasks], total=total)
 
 
 @router.get("/{task_id}")

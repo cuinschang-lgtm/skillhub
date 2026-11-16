@@ -7,6 +7,7 @@ export type SkillSummary = {
   chapter_count?: number | null;
   benchmark_verdict?: string | null;
   benchmark_delta?: number | null;
+  benchmark_score?: number | null;
 };
 
 export type SkillDetail = {
@@ -16,6 +17,7 @@ export type SkillDetail = {
   chapter_count?: number | null;
   benchmark_verdict?: string | null;
   benchmark_delta?: number | null;
+  benchmark_score?: number | null;
 };
 
 export type SkillListResponse = {

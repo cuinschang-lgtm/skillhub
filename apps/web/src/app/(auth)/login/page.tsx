@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Mail, Lock } from "lucide-react";
+import { BookOpen, Mail, Lock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,66 +11,32 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 function LoginInner() {
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
-  const [sending, setSending] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
+  const [demoLoggingIn, setDemoLoggingIn] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
   const sp = useSearchParams();
   const nextPath = useMemo(() => sp.get("next") || "/dashboard", [sp]);
 
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = window.setInterval(() => setCooldown((v) => Math.max(0, v - 1)), 1000);
-    return () => window.clearInterval(t);
-  }, [cooldown]);
-
-  async function sendCode() {
+  async function submitLogin() {
     setError("");
     const v = email.trim().toLowerCase();
     if (!v) {
       setError("请输入邮箱");
       return;
     }
-    setSending(true);
-    try {
-      const res = await fetch("/api/auth/send-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: v }),
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { message?: string } | null;
-        setError(data?.message || "发送失败");
-        return;
-      }
-      setCooldown(60);
-    } catch {
-      setError("网络错误，请稍后重试");
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function login() {
-    setError("");
-    const v = email.trim().toLowerCase();
-    if (!v) {
-      setError("请输入邮箱");
-      return;
-    }
-    if (!code.trim()) {
-      setError("请输入验证码");
+    if (!password) {
+      setError("请输入密码");
       return;
     }
     setLoggingIn(true);
     try {
-      const res = await fetch("/api/auth/verify", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: v, code, role: "student", remember }),
+        body: JSON.stringify({ email: v, password, remember }),
         credentials: "include",
       });
       const data = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -83,6 +49,34 @@ function LoginInner() {
       setError("网络错误，请稍后重试");
     } finally {
       setLoggingIn(false);
+    }
+  }
+
+  async function demoLogin() {
+    setError("");
+    const v = email.trim().toLowerCase();
+    if (!v) {
+      setError("请先输入邮箱（演示登录任意邮箱均可）");
+      return;
+    }
+    setDemoLoggingIn(true);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: v, code: "123456", role: "teacher", remember }),
+        credentials: "include",
+      });
+      const data = (await res.json().catch(() => null)) as { message?: string } | null;
+      if (!res.ok) {
+        setError(data?.message || "演示登录失败");
+        return;
+      }
+      router.replace(nextPath);
+    } catch {
+      setError("网络错误，请稍后重试");
+    } finally {
+      setDemoLoggingIn(false);
     }
   }
 
@@ -99,77 +93,92 @@ function LoginInner() {
           <p className="text-sm text-muted-foreground mt-1">登录你的账户，继续探索知识的边界</p>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
-          <div className="text-sm text-muted-foreground bg-muted border border-border rounded-lg px-3 py-2">
-            演示环境不发送邮件验证码，固定为 <span className="font-semibold text-foreground">123456</span>
-          </div>
           {error ? (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {error}
             </div>
           ) : null}
-          <div className="space-y-2">
-            <Label htmlFor="email">邮箱</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="请输入教育邮箱"
-                className="pl-10"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="code">验证码</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitLogin();
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="email">邮箱</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="code"
-                  placeholder="请输入验证码"
+                  id="email"
+                  type="email"
+                  placeholder="请输入教育邮箱"
                   className="pl-10"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") login();
-                  }}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
                 />
               </div>
-              <Button
-                variant="outline"
-                size="default"
-                className="shrink-0"
-                onClick={sendCode}
-                disabled={sending || cooldown > 0}
-              >
-                {cooldown > 0 ? `${cooldown}s` : "获取验证码"}
-              </Button>
             </div>
-          </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded border-border"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-              />
-              <span className="text-muted-foreground">记住我</span>
-            </label>
-            <Link href="#" className="text-primary hover:underline">忘记密码？</Link>
+            <div className="space-y-2">
+              <Label htmlFor="password">密码</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="请输入密码"
+                  className="pl-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-border"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                <span className="text-muted-foreground">记住我</span>
+              </label>
+              <Link href="/register" className="text-primary hover:underline">没有账号？</Link>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-primary hover:bg-primary/90"
+              size="lg"
+              disabled={loggingIn || demoLoggingIn}
+            >
+              {loggingIn ? "登录中..." : "登录"}
+            </Button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-card px-3 text-xs text-muted-foreground">或</span>
+            </div>
           </div>
 
           <Button
-            className="w-full bg-primary hover:bg-primary/90"
+            type="button"
+            variant="outline"
+            className="w-full"
             size="lg"
-            onClick={login}
-            disabled={loggingIn}
+            onClick={demoLogin}
+            disabled={loggingIn || demoLoggingIn}
           >
-            {loggingIn ? "登录中..." : "登录"}
+            <Sparkles className="w-4 h-4" />
+            {demoLoggingIn ? "进入演示环境..." : "演示登录（免注册体验）"}
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">

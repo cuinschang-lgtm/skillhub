@@ -199,7 +199,7 @@ export default function UploadPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setVisibility("public")}
-                className={`flex-1 py-2.5 px-4 rounded-lg border text-sm transition-all ${
+                className={`flex-1 py-2.5 px-4 rounded-lg border text-sm transition-colors ${
                   visibility === "public"
                     ? "border-primary bg-secondary text-primary font-medium"
                     : "border-border text-muted-foreground hover:border-primary/50"
@@ -209,7 +209,7 @@ export default function UploadPage() {
               </button>
               <button
                 onClick={() => setVisibility("private")}
-                className={`flex-1 py-2.5 px-4 rounded-lg border text-sm transition-all ${
+                className={`flex-1 py-2.5 px-4 rounded-lg border text-sm transition-colors ${
                   visibility === "private"
                     ? "border-primary bg-secondary text-primary font-medium"
                     : "border-border text-muted-foreground hover:border-primary/50"
